@@ -1,0 +1,38 @@
+###
+# * Plugin Details
+###
+
+PLUGIN:
+  name: '[Gavin]'
+  author: '[Gavin]'
+  desc: "[Gavin]'s Proxyshop plugin."
+  license: 'MPL-2.0'
+  requires: '^1.13.0'
+  version: '1.0.0'
+
+###
+# * Templates
+###
+retro.psd:
+  name: 'Retro'
+  id: ''
+  desc: 'Cards in the style of 7th edition, with modern color grading.'
+  templates:
+    Retro:
+      RetroTemplate:
+        - transform_front
+        - transform_back
+        - mdfc_front
+        - mdfc_back
+        - normal
+        - planeswalker
+        - pw_mdfc_front
+        - pw_mdfc_back
+        - pw_tf_front
+        - pw_tf_back
+    Retro Saga:
+      RetroSagaTemplate:
+        - saga
+    Retro Class:
+      RetroClassTemplate:
+        - class
