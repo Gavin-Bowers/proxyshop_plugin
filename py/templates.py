@@ -277,17 +277,42 @@ class RetroTemplate(ClassicTemplate):
 
     @auto_prop_cached
     def is_tombstone_auto(self) -> bool:
+        keyword_list = [
+            'Flashback',
+            'Dredge',
+            'Scavenge',
+            'Embalm',
+            'Eternalize',
+            'Aftermath',
+            'Disturb',
+            'Encore',
+            'Escape',
+            'Jump-start',
+            'Recover',
+            'Retrace',
+            'Unearth',
+        ]
+        for keyword in keyword_list:
+            if keyword in self.layout.keywords: return True
+
         key_phrase_list = [
-            'flashback',
-            'dredge',
-            'scavenge',
-            'eternalize',
-            'aftermath',
-            f'{self.layout.name.lower()} is in your graveyard',
-            f'{self.layout.name.lower()} from your graveyard'
+            f'{self.layout.name_raw} is in your graveyard',
+            f'return {self.layout.name_raw} from your graveyard',
+            f'cast {self.layout.name_raw} from your graveyard',
+            f'put {self.layout.name_raw} from your graveyard',
+            f'exile {self.layout.name_raw} from your graveyard',
         ]
         for phrase in key_phrase_list:
-            if phrase in self.layout.oracle_text.lower(): return True
+            if phrase in self.layout.oracle_text_raw: return True
+
+        name_list = [
+            "Say Its Name",
+            "Skyblade's Boon",
+            "Nether Spirit",
+        ]
+        for name in name_list:
+            if name == self.layout.name_raw: return True
+
         return False
 
     # Layer logic
