@@ -1,37 +1,37 @@
 """
 * Plugin: [Gavin]
 """
-# Third Party
-from PIL import Image
+# Standard Library
 from enum import Enum
-from photoshop.api import AnchorPosition, SolidColor  # type: ignore
-from photoshop.api._artlayer import ArtLayer  # type: ignore
-from photoshop.api._layerSet import LayerSet  # type: ignore
-from typing import Optional
-# Standard Library Imports
 from typing import Optional, Union
 
+# Third Party
+from PIL import Image
+from photoshop.api import AnchorPosition, SolidColor
+from photoshop.api._artlayer import ArtLayer
+from photoshop.api._layerSet import LayerSet
+
+# Local
 import src.helpers as psd
 import src.text_layers as text_classes
-# Local
+
 from src import CFG, CON
 from src.enums.layers import LAYERS
+from src.utils.adobe import ReferenceLayer
+from src.utils.properties import auto_prop_cached
 from src.helpers import get_line_count, set_text_size, enable_layer_fx
-# Local Imports
 from src.layouts import SagaLayout
 from src.templates import ClassicTemplate, ClassMod
 from src.templates.saga import SagaMod, SagaVectorTemplate
-from src.text_layers import FormattedTextArea, TextField
+
 from src.text_layers import (
     TextField,
     ScaledTextField,
     FormattedTextArea,
     FormattedTextField,
-    ScaledWidthTextField)
-from src.utils.adobe import ReferenceLayer
-from src.utils.adobe import ReferenceLayer
-from src.utils.properties import auto_prop_cached
-from src.utils.properties import auto_prop_cached
+    ScaledWidthTextField
+)
+
 
 
 # TODO
@@ -81,7 +81,7 @@ class RetroTemplate(ClassicTemplate):
     # Textless still has Power/Toughness, Name, and Mana cost, but all other text (and the set symbol) are removed
 
     # Set to None to enable automatic textbox size based on the amount of text
-    textbox_size_override = "Normal"
+    textbox_size_override = None
 
     # Gives lands a lighter color-grading, golden textbox color, and shiny golden pinlines like the lands from Legends
     legends_style_lands = False
