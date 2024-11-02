@@ -1,7 +1,6 @@
-### Instructions
-To change settings, edit the values in the settings section of templates.py.
-The settings will be added to the GUI of Proxyshop when that feature is fixed.
-Each setting has a comment above it describing what it does, unless the name is sufficiently self-explanitory.
+Changelog:
+Updated for 1.14
+Settings now work!
 
 The settings are configured to be as accurate as possible by default. However, the template has some differences from real cards for quality reasons.
 * Textboxes are cropped in slightly to remove the bevel, and it's recreated in photoshop. This is to give more control and get cleaner lines
