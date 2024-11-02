@@ -2,28 +2,25 @@
 * Plugin: [Gavin]
 """
 # Standard Library
-from enum import Enum
 from typing import Optional, Union
+from functools import cached_property
 
 # Third Party
 from PIL import Image
-from photoshop.api import AnchorPosition, SolidColor
+from photoshop.api import AnchorPosition
 from photoshop.api._artlayer import ArtLayer
 from photoshop.api._layerSet import LayerSet
 
 # Local
 import src.helpers as psd
 import src.text_layers as text_classes
+from src import CON, CFG
 
-from src import CFG, CON
 from src.enums.layers import LAYERS
 from src.utils.adobe import ReferenceLayer
-from src.utils.properties import auto_prop_cached
-from src.helpers import get_line_count, set_text_size, enable_layer_fx
-from src.layouts import SagaLayout
+from src.helpers import get_line_count, set_text_size
 from src.templates import ClassicTemplate, ClassMod
-from src.templates.saga import SagaMod, SagaVectorTemplate
-
+from src.templates.saga import SagaMod
 from src.text_layers import (
     TextField,
     ScaledTextField,
@@ -32,11 +29,7 @@ from src.text_layers import (
     ScaledWidthTextField
 )
 
-
-
 # TODO
-# MDFC
-# Planeswalkers
 # Nyx, colored artifacts
 # Legend Crown
 # Battles
@@ -48,234 +41,280 @@ from src.text_layers import (
 
 # Make Retro inherit from core or normal instead of classic?
 
-def rank_textbox_size(size: str) -> int:
-    match size:
-        case "Small":
-            return 0
-        case "Medium":
-            return 1
-        case "Normal":
-            return 2
-
-
 class RetroTemplate(ClassicTemplate):
     """Retro frames from MM3, MH3, and RVR."""
     frame_suffix = 'Retro'
 
-    # Settings
+    @property
+    def tombstone_setting(self):
+        return CFG.get_setting(
+            section="GENERAL",
+            key="tombstone",
+            is_bool=False
+        )
 
-    # Auto looks for certain phrases in the oracle text
-    # to determine which cards should have the tombstone icon
-    # on_flashback only checks for flashback so it doesn't have false positives like auto
-    # The last setting checks if the exact version of the card given has a tombstone icon
-    # So new border cards and cards before the creation of tombstone don't have it
-    auto_add_tombstone = True
-    tombstone_on_flashback = True
-    tombstone_on_tombstone = True
+    @property
+    def verbose_planeswalkers(self):
+        return CFG.get_setting(
+            section="PLANESWALKER",
+            key="verbose",
+        )
 
-    # Makes planeswalker explain the mechanics, like the secret lair planeswalkers
-    verbose_planeswalkers = False
+    @property
+    def textbox_size_setting(self):
+        return CFG.get_setting(
+            section="GENERAL",
+            key="textbox_size",
+            is_bool=False
+        )
 
-    # Controls size of textbox and art. Options are Normal (default), Medium, Small, and Textless
-    # Medium is about 70% of normal size and Small is about 55%
-    # Textless still has Power/Toughness, Name, and Mana cost, but all other text (and the set symbol) are removed
+    @property
+    def legends_style_lands(self):
+        return CFG.get_setting(
+            section="GENERAL",
+            key="legends_style_lands",
+        )
 
-    # Set to None to enable automatic textbox size based on the amount of text
-    textbox_size_override = None
+    @property
+    def use_irregular_textboxes(self):
+        return CFG.get_setting(
+            section="GENERAL",
+            key="use_irregular_textboxes",
+        )
 
-    # Gives lands a lighter color-grading, golden textbox color, and shiny golden pinlines like the lands from Legends
-    legends_style_lands = False
+    @property
+    def pinlines_on_multicolored(self):
+        return CFG.get_setting(
+            section="PINLINES",
+            key="multicolored",
+        )
 
-    # Use nonstandard textboxes (wooden plank and tattered scroll respectively) on green and black cards
-    use_irregular_textboxes = True
-    use_black_raster_textbox = True
+    @property
+    def pinlines_on_artifacts(self):
+        return CFG.get_setting(
+            section="PINLINES",
+            key="artifacts",
+        )
 
-    # Pinlines
+    @property
+    def pinlines_on_all_cards(self):
+        return CFG.get_setting(
+            section="PINLINES",
+            key="all",
+        )
 
-    # Adds multicolored/gold pinlines to multicolored cards
-    pinlines_on_multicolored = False
+    @property
+    def color_all_pinlines(self):
+        return CFG.get_setting(
+            section="PINLINES",
+            key="color_all",
+        )
 
-    # Adds colored pinlines to colored artifacts and light brown pinlines to colorless ones
-    pinlines_on_artifacts = False
+    @property
+    def max_pinline_colors(self):
+        return int(CFG.get_setting(
+            section="PINLINES",
+            key="max_colors",
+            is_bool=False
+        ))
 
-    # Enables pinlines on all nonland cards. Monocolored cards have pinline colors inherited from basic lands
-    pinlines_on_all_cards = False
+    @property
+    def colorless_transparent(self):
+        return CFG.get_setting(
+            section="GENERAL",
+            key="colorless_transparent",
+        )
 
-    # Applies card color to pinlines other than the textbox on multicolored and artifact cards
-    # Monocolored and basic land cards always use card color for all pinlines
-    color_all_pinlines = False
+    @property
+    def use_colored_bevels_on_devoid(self):
+        return CFG.get_setting(
+            section="GENERAL",
+            key="use_colored_bevels_on_devoid",
+        )
 
-    # Range: 2-4, default: 2
-    # Pinlines are gold if colors > max_pinline_colors
-    max_pinline_colors = 2
+    @property
+    def all_transparent(self):
+        return CFG.get_setting(
+            section="GENERAL",
+            key="all_transparent",
+        )
 
-    # Art Size
+    @property
+    def transparent_opacity(self):
+        return float(CFG.get_setting(
+            section="GENERAL",
+            key="transparent_opacity",
+            is_bool=False
+        ))
 
-    # Makes colorless cardframes transparent
-    # Requires full art
-    colorless_transparent = True
+    @property
+    def use_floating_frame(self):
+        return CFG.get_setting(
+            section="GENERAL",
+            key="use_floating_frame",
+        )
 
-    # Makes the colored part at the top of devoid cards include a colored art bevel
-    # The colorless bevel is very subtle, so this setting makes the name bar more pronounced
-    use_colored_bevels_on_devoid = True
+    @property
+    def gold_textbox_pinline_lands(self):
+        return CFG.get_setting(
+            section="PINLINES",
+            key="gold_textbox_pinline_lands",
+        )
 
-    # Makes all cards transparent
-    all_transparent = False
+    @property
+    def gold_textbox_lands(self):
+        return CFG.get_setting(
+            section="GENERAL",
+            key="gold_textbox_lands",
+        )
 
-    # The opacity value for the card frame when transparent. Range: 0.0 - 100.0, Default: 35.0
-    transparent_opacity = 45.0
+    @property
+    def textbox_bevels_on_gold_lands(self):
+        return CFG.get_setting(
+            section="GENERAL",
+            key="textbox_bevels_on_gold_lands",
+        )
 
-    # Makes the card borderless, so the frame floats on top of the art. Requires very large art to work properly
-    use_floating_frame = False
+    @property
+    def split_hybrid(self):
+        return CFG.get_setting(
+            section="GENERAL",
+            key="split_hybrid",
+        )
 
-    # Lands
+    @property
+    def split_all(self):
+        return CFG.get_setting(
+            section="GENERAL",
+            key="split_all",
+        )
 
-    # Makes the textbox pinlines on all nonbasic lands gold, like in fifth edition
-    gold_textbox_pinline_lands = False
+    @property
+    def use_dual_textbox_bevels(self):
+        return not CFG.get_setting(
+            section="GENERAL",
+            key="standardize_dual_fade_bevels",
+        )
 
-    # Makes the textbox on all nonbasic lands gold, like in fifth edition
-    gold_textbox_lands = False
+    @property
+    def disable_textbox_bevels(self):
+        return CFG.get_setting(
+            section="GENERAL",
+            key="disable_textbox_bevels",
+        )
 
-    # Makes gold lands have textbox bevels. They don't for some reason
-    textbox_bevels_on_gold_lands = False
-
-    # Split fade cards
-
-    # Makes hybrid cards a horizontal fade between the colors
-    split_hybrid = True
-
-    # Split fade on all two colored cards.
-    split_all = False
-
-    # Uses normal textbox bevels and applies a dual fade to them on split fade cards.
-    # Looks weird because red cards have inverted bevels to other colors, and blue, white and red cards have lines in their bevels
-    # The alternative (default) is a standarized bevel color
-    # The bevel size is always standardized because it would look goofy otherwise
-    use_dual_textbox_bevels = False
-
-    # Misc
-
-    # Does what it sounds like. Turns off all textbox bevels
-    disable_textbox_bevels = False
-
-    #################################################################################
-
-    @auto_prop_cached
+    @cached_property
     def card_frame_group(self) -> LayerSet:
         return psd.getLayerSet("Card Frame")
 
-    @auto_prop_cached
+    @cached_property
     def art_frames_layer(self) -> LayerSet:
         return psd.getLayerSet("Art Frames")
 
-    @auto_prop_cached
+    @cached_property
     def pinlines_layer(self) -> LayerSet:
         return psd.getLayerSet("Pinlines")
 
-    @auto_prop_cached
+    @cached_property
     def art_pinlines_layer(self) -> LayerSet:
         return psd.getLayerSet("Art", self.pinlines_layer)
 
-    @auto_prop_cached
+    @cached_property
     def art_pinlines_masks_layer(self) -> LayerSet:
         return psd.getLayerSet("Art Masks", self.pinlines_layer)
 
-    @auto_prop_cached
+    @cached_property
     def art_pinlines_background_layer(self) -> LayerSet:
         return psd.getLayerSet("Art Background", self.pinlines_layer)
 
-    @auto_prop_cached
+    @cached_property
     def textbox_pinlines_layer(self) -> LayerSet:
         return psd.getLayerSet("Textbox", self.pinlines_layer)
 
-    @auto_prop_cached
+    @cached_property
     def textbox_pinlines_masks_layer(self) -> LayerSet:
         return psd.getLayerSet("Textbox Masks", self.pinlines_layer)
 
-    @auto_prop_cached
+    @cached_property
     def textbox_pinlines_background_layer(self) -> LayerSet:
         return psd.getLayerSet("Textbox Background", self.pinlines_layer)
 
-    @auto_prop_cached
+    @cached_property
     def outlines_group(self) -> LayerSet:
         return psd.getLayerSet("Outlines")
 
-    @auto_prop_cached
+    @cached_property
     def art_outlines_layer(self) -> LayerSet:
         return psd.getLayerSet("Art Outlines", self.outlines_group)
 
-    @auto_prop_cached
+    @cached_property
     def textbox_outlines_group(self) -> LayerSet:
         return psd.getLayerSet("Textbox Outlines", self.outlines_group)
 
-    @auto_prop_cached
+    @cached_property
     def textbox_bevels_group(self) -> LayerSet:
         return psd.getLayerSet("Textbox Bevels", self.card_frame_group)
 
-    @auto_prop_cached
+    @cached_property
     def textbox_bevels_masks_layer(self) -> LayerSet:
         return psd.getLayerSet("Masks", self.textbox_bevels_group)
 
-    @auto_prop_cached
+    @cached_property
     def textbox_layer(self) -> LayerSet:
         return psd.getLayerSet("Textbox", self.card_frame_group)
 
-    @auto_prop_cached
+    @cached_property
     def textbox_masks_group(self) -> LayerSet:
         return psd.getLayerSet("Masks", self.textbox_layer)
 
-    @auto_prop_cached
+    @cached_property
     def textbox_effects_layer(self) -> LayerSet:
         return psd.getLayerSet("Effects", self.textbox_layer)
 
-    @auto_prop_cached
+    @cached_property
     def bevels_layer(self) -> LayerSet:
         return psd.getLayerSet("Bevels", self.card_frame_group)
 
-    @auto_prop_cached
+    @cached_property
     def bevels_masks_layer(self) -> LayerSet:
         return psd.getLayerSet("Masks", self.bevels_layer)
 
-    @auto_prop_cached
+    @cached_property
     def bevels_light_layer(self) -> LayerSet:
         return psd.getLayerSet("Light", self.bevels_layer)
 
-    @auto_prop_cached
+    @cached_property
     def bevels_dark_layer(self) -> LayerSet:
         return psd.getLayerSet("Dark", self.bevels_layer)
 
-    @auto_prop_cached
+    @cached_property
     def frame_texture_layer(self) -> LayerSet:
         return psd.getLayerSet("Frame Texture", self.card_frame_group)
 
-    @auto_prop_cached
+    @cached_property
     def frame_masks_layer(self) -> LayerSet:
         return psd.getLayerSet("Masks", self.frame_texture_layer)
 
-    @auto_prop_cached
+    @cached_property
     def transform_group(self) -> LayerSet:
         return psd.getLayerSet(LAYERS.TRANSFORM, self.text_group)
 
-    @auto_prop_cached
+    @cached_property
     def mdfc_group(self) -> LayerSet:
         return psd.getLayerSet("MDFC", self.text_group)
 
     # Added layout logic
 
-    @auto_prop_cached
+    @cached_property
     def flavor_name(self) -> Optional[str]:
         """Display name for nicknamed cards"""
         return self.layout.card.get('flavor_name')
 
-    @auto_prop_cached
-    def is_tombstone(self) -> bool:
+    @cached_property
+    def is_tombstone_scryfall(self) -> bool:
         return bool('tombstone' in self.layout.frame_effects)
 
-    @auto_prop_cached
-    def is_flashback(self) -> bool:
-        return bool('flashback' in self.layout.oracle_text)
-
-    @auto_prop_cached
+    @cached_property
     def is_tombstone_auto(self) -> bool:
         keyword_list = [
             'Flashback',
@@ -312,22 +351,31 @@ class RetroTemplate(ClassicTemplate):
         ]
         for name in name_list:
             if name == self.layout.name_raw: return True
+        return False
 
+    @cached_property
+    def has_tombstone(self) -> bool:
+        setting = self.tombstone_setting
+        match setting:
+            case "Automatic":
+                return self.is_tombstone_auto
+            case "Scryfall":
+                return self.is_tombstone_scryfall
         return False
 
     # Layer logic
 
-    @auto_prop_cached
+    @cached_property
     def frame_texture(self) -> ArtLayer:
         if self.is_land and self.legends_style_lands:
             return psd.getLayer("Legends Land", self.frame_texture_layer)
         return psd.getLayer(self.identity_advanced, self.frame_texture_layer)
 
-    @auto_prop_cached
+    @cached_property
     def frame_mask(self) -> ArtLayer:
         return psd.getLayer(self.textbox_size, self.frame_masks_layer)
 
-    @auto_prop_cached
+    @cached_property
     def textbox_texture(self) -> ArtLayer:
         if self.is_land:
             if self.legends_style_lands:
@@ -337,7 +385,7 @@ class RetroTemplate(ClassicTemplate):
             return psd.getLayer(self.identity + "L", self.textbox_layer)
         return psd.getLayer(self.identity_advanced, self.textbox_layer)
 
-    @auto_prop_cached
+    @cached_property
     def textbox_mask(self) -> Optional[ArtLayer]:
         if self.textbox_size == "Textless": return None
         textbox_name = self.textbox_size
@@ -348,7 +396,7 @@ class RetroTemplate(ClassicTemplate):
 
         return psd.getLayer(textbox_name, self.textbox_masks_group)
 
-    @auto_prop_cached
+    @cached_property
     def art_reference(self) -> ReferenceLayer:
         if self.use_floating_frame:
             return psd.get_reference_layer("Floating Frame", self.art_frames_layer)
@@ -356,21 +404,21 @@ class RetroTemplate(ClassicTemplate):
             return psd.get_reference_layer("Transparent Frame", self.art_frames_layer)
         return psd.get_reference_layer(self.textbox_size, self.art_frames_layer)
 
-    @auto_prop_cached
+    @cached_property
     def textbox_reference(self) -> ReferenceLayer:
         if self.is_mdfc:
             return psd.get_reference_layer(f"Textbox Reference {self.textbox_size} TF", self.text_group)
         return psd.get_reference_layer(f"Textbox Reference {self.textbox_size}", self.text_group)
 
-    @auto_prop_cached
+    @cached_property
     def expansion_reference(self) -> ReferenceLayer:
         return psd.get_reference_layer("Expansion Reference", self.text_group)
 
-    @auto_prop_cached
+    @cached_property
     def art_outlines(self) -> LayerSet:
         return psd.getLayerSet(self.textbox_size, self.art_outlines_layer)
 
-    @auto_prop_cached
+    @cached_property
     def textbox_outlines(self) -> Optional[ArtLayer]:
         if self.has_irregular_textbox:
             return None
@@ -382,20 +430,20 @@ class RetroTemplate(ClassicTemplate):
 
     # Properties
 
-    @auto_prop_cached
+    @cached_property
     def has_nickname(self) -> bool:
         """Return True if this a nickname render."""
         if self.flavor_name is not None:
             return True
         return False
 
-    @auto_prop_cached
+    @cached_property
     def is_content_aware_enabled(self) -> bool:
         if self.use_floating_frame:
             return True
         return False
 
-    @auto_prop_cached
+    @cached_property
     def has_irregular_textbox(self) -> bool:
         if self.is_saga or self.is_class:
             return False
@@ -409,7 +457,7 @@ class RetroTemplate(ClassicTemplate):
             return True
         return False
 
-    @auto_prop_cached
+    @cached_property
     def identity_advanced(self) -> str:
         if self.is_land:
             return "Land"
@@ -423,7 +471,7 @@ class RetroTemplate(ClassicTemplate):
             return "Gold"
         return self.identity
 
-    @auto_prop_cached
+    @cached_property
     def has_pinlines(self) -> bool:
         if self.is_land:
             return True
@@ -435,13 +483,13 @@ class RetroTemplate(ClassicTemplate):
             return True
         return False
 
-    @auto_prop_cached
+    @cached_property
     def has_textbox(self) -> bool:
         if self.textbox_size == "Textless":
             return False
         return True
 
-    @auto_prop_cached
+    @cached_property
     def has_textbox_bevels(self) -> bool:
         if not self.has_textbox:
             return False
@@ -457,7 +505,7 @@ class RetroTemplate(ClassicTemplate):
             return False
         return True
 
-    @auto_prop_cached
+    @cached_property
     def is_gold_land(self) -> bool:
         """ Whether the textbox of the card is the gold land textbox"""
         if not self.is_land:
@@ -470,7 +518,7 @@ class RetroTemplate(ClassicTemplate):
             return True
         return False
 
-    @auto_prop_cached
+    @cached_property
     def is_dual_land(self) -> bool:
         if not self.is_land:
             return False
@@ -480,7 +528,7 @@ class RetroTemplate(ClassicTemplate):
             return True
         return False
 
-    @auto_prop_cached
+    @cached_property
     def is_split(self) -> bool:
         if len(self.identity) != 2:
             return False
@@ -490,7 +538,7 @@ class RetroTemplate(ClassicTemplate):
             return True
         return False
 
-    @auto_prop_cached
+    @cached_property
     def is_transparent(self) -> bool:
         if self.is_colorless and self.colorless_transparent:
             return True
@@ -498,7 +546,7 @@ class RetroTemplate(ClassicTemplate):
             return True
         return False
 
-    @auto_prop_cached
+    @cached_property
     def is_devoid(self) -> bool:
         # For some reason true colorless cards have "Colorless" as their color identity while
         # artifacts have an empty string.
@@ -508,22 +556,22 @@ class RetroTemplate(ClassicTemplate):
             return True
         return False
 
-    @auto_prop_cached
+    @cached_property
     def is_saga(self) -> bool:
         return False
 
-    @auto_prop_cached
+    @cached_property
     def is_class(self) -> bool:
         return False
 
-    @auto_prop_cached
+    @cached_property
     def art_aspect(self) -> float:
         art_file = self.layout.art_file
         with Image.open(art_file) as img:
             width, height = img.size
             return width / height
 
-    @auto_prop_cached
+    @cached_property
     def textbox_size_from_art_aspect(self) -> str:
         if self.art_aspect > 1.25:
             return "Normal"
@@ -533,7 +581,7 @@ class RetroTemplate(ClassicTemplate):
             return "Small"
         return "Small"
 
-    @auto_prop_cached
+    @cached_property
     def textbox_size_from_text(self) -> str:
         """Returns an appropriate textbox size for the amount of text"""
         # Set up our test text layer
@@ -550,8 +598,18 @@ class RetroTemplate(ClassicTemplate):
             return "Medium"
         return "Normal"
 
-    @auto_prop_cached
+    @cached_property
     def auto_textbox_size(self) -> str:
+
+        def rank_textbox_size(size: str) -> int:
+            match size:
+                case "Small":
+                    return 0
+                case "Medium":
+                    return 1
+                case "Normal":
+                    return 2
+
         match max(
             rank_textbox_size(self.textbox_size_from_text),
             rank_textbox_size(self.textbox_size_from_art_aspect)
@@ -564,43 +622,43 @@ class RetroTemplate(ClassicTemplate):
                 return "Normal"
         return "Normal"  # Failsafe
 
-    @auto_prop_cached
+    @cached_property
     def textbox_size(self) -> str:
         if self.is_saga:
             return "Saga"
         if self.is_class:
             return "Class"
-        if self.textbox_size_override is not None:
-            return self.textbox_size_override
-        return self.auto_textbox_size
+        if self.textbox_size_setting == "Automatic":
+            return self.auto_textbox_size
+        return self.textbox_size_setting
 
     """
     * Text Layers
     """
 
-    @auto_prop_cached
+    @cached_property
     def text_layer_type(self) -> ArtLayer:
         if not self.has_textbox:
             return None
         return psd.getLayer(LAYERS.TYPE_LINE, self.text_group)
 
-    @auto_prop_cached
+    @cached_property
     def text_layer_name(self) -> ArtLayer:
         return psd.getLayer(LAYERS.NAME, self.text_group)
 
-    @auto_prop_cached
+    @cached_property
     def text_layer_nickname(self) -> ArtLayer:
         return psd.getLayer("Nickname", self.text_group)
 
-    @auto_prop_cached
+    @cached_property
     def text_layer_rules(self) -> ArtLayer:
         return psd.getLayer(LAYERS.RULES_TEXT, self.text_group)
 
-    @auto_prop_cached
+    @cached_property
     def nickname_shape(self) -> ArtLayer:
         return psd.getLayer("Nickname Box", self.text_group)
 
-    @auto_prop_cached
+    @cached_property
     def pt_length(self) -> int:
         return len(f'{self.layout.power}{self.layout.toughness}')
 
@@ -699,7 +757,7 @@ class RetroTemplate(ClassicTemplate):
                 )
             )
 
-    @auto_prop_cached
+    @cached_property
     def land_color_map(self) -> dict:
         return {
             'W': [217, 206, 200],
@@ -710,7 +768,7 @@ class RetroTemplate(ClassicTemplate):
             'Land': [244, 172, 38],
         }
 
-    @auto_prop_cached
+    @cached_property
     def dual_land_color_map(self) -> dict:
         return {
             'W': [224, 217, 215],
@@ -721,7 +779,7 @@ class RetroTemplate(ClassicTemplate):
             'Land': [244, 172, 38],
         }
 
-    @auto_prop_cached
+    @cached_property
     def nonland_color_map(self) -> dict:
         return {
             'W': [217, 206, 200],
@@ -734,7 +792,7 @@ class RetroTemplate(ClassicTemplate):
             'Colorless': [198, 198, 198]
         }
 
-    @auto_prop_cached
+    @cached_property
     def pinlines_color_map(self) -> dict:
         if self.is_land:
             if len(self.identity) == 2:
@@ -742,7 +800,7 @@ class RetroTemplate(ClassicTemplate):
             return self.land_color_map
         return self.nonland_color_map
 
-    @auto_prop_cached
+    @cached_property
     def textbox_pinlines_colors(self) -> Union[list[int], list[dict]]:
         if self.is_land:
             if (not self.is_basic_land and self.gold_textbox_lands) or (len(self.identity) > self.max_pinline_colors):
@@ -751,17 +809,18 @@ class RetroTemplate(ClassicTemplate):
             self.identity if 1 < len(self.identity) <= self.max_pinline_colors else self.pinlines,
             color_map=self.pinlines_color_map)
 
-    @auto_prop_cached
+    @cached_property
     def non_textbox_pinlines_colors(self) -> Union[list[int], list[dict]]:
         """Must be returned as SolidColor or gradient notation."""
-        if self.is_land and not self.is_basic_land:
-            return psd.get_pinline_gradient("Land", color_map=self.pinlines_color_map)
-        if not self.color_all_pinlines and len(self.identity) > 1:
-            if self.is_artifact:
-                return psd.get_pinline_gradient("Artifact", color_map=self.pinlines_color_map)
-            if self.is_colorless:
-                return psd.get_pinline_gradient("Colorless", color_map=self.pinlines_color_map)
-            return psd.get_pinline_gradient("Gold", color_map=self.pinlines_color_map)
+        if not self.color_all_pinlines:
+            if self.is_land and not self.is_basic_land:
+                return psd.get_pinline_gradient("Land", color_map=self.pinlines_color_map)
+            if len(self.identity) > 1:
+                if self.is_artifact:
+                    return psd.get_pinline_gradient("Artifact", color_map=self.pinlines_color_map)
+                if self.is_colorless:
+                    return psd.get_pinline_gradient("Colorless", color_map=self.pinlines_color_map)
+                return psd.get_pinline_gradient("Gold", color_map=self.pinlines_color_map)
         return self.textbox_pinlines_colors
 
     def add_pinlines(self):
@@ -795,7 +854,7 @@ class RetroTemplate(ClassicTemplate):
         psd.getLayer(self.identity_advanced, self.bevels_light_layer).visible = True
         psd.getLayer(self.identity_advanced, self.bevels_dark_layer).visible = True
 
-    @auto_prop_cached
+    @cached_property
     def textbox_bevel_thickness(self) -> str:
         if self.has_pinlines:
             return "Land"
@@ -857,7 +916,7 @@ class RetroTemplate(ClassicTemplate):
         psd.getLayer(bevel_color, tr).visible = True
         psd.getLayer(bevel_color, bl).visible = True
 
-    @auto_prop_cached
+    @cached_property
     def dual_fade_info(self) -> tuple[str, str, str, str]:
         """Returned values are: top mask, bottom mask, top layer identity, bottom layer identity"""
         match self.identity:
@@ -998,16 +1057,6 @@ class RetroTemplate(ClassicTemplate):
         if self.is_type_shifted:
             self.text_layer_type.translate(100, 0)
 
-    @auto_prop_cached
-    def has_tombstone(self) -> bool:
-        if self.is_tombstone_auto and self.auto_add_tombstone:
-            return True
-        if self.is_flashback and self.tombstone_on_flashback:
-            return True
-        if self.is_tombstone and self.tombstone_on_tombstone:
-            return True
-        return False
-
     def add_tf_elements(self):
         """Adds elements for transform and mdfc cards (also tombstone)"""
         if self.is_transform:
@@ -1042,6 +1091,10 @@ class RetroTemplate(ClassicTemplate):
                 self.add_textbox_notch()
             return
 
+        print(f"has tombstone: {self.has_tombstone}")
+        print(f"is tombstone auto: {self.is_tombstone_auto}")
+        print(f"is tombstone scryfall: {self.is_tombstone_scryfall}")
+        print(f"tombstone setting: {self.tombstone_setting}")
         if self.has_tombstone:
             psd.getLayer("Tombstone", self.text_group).visible = True
 
@@ -1116,12 +1169,12 @@ class RetroTemplate(ClassicTemplate):
 
         self.frame_mask.visible = True
         if self.has_textbox:
-            if self.identity_advanced == "B" and self.use_black_raster_textbox:
+            if self.identity_advanced == "B":
                 psd.getLayer(f"B {self.textbox_size}", self.textbox_layer).visible = True
             else:
                 self.textbox_mask.visible = True
 
-        if self.has_irregular_textbox and not (self.identity_advanced == "B" and self.use_black_raster_textbox):
+        if self.has_irregular_textbox and not (self.identity_advanced == "B"):
             psd.copy_layer_fx(psd.getLayer(self.identity_advanced, self.textbox_effects_layer), self.textbox_layer)
 
         self.art_outlines.visible = True
@@ -1185,19 +1238,19 @@ class RetroTemplate(ClassicTemplate):
 
 class RetroSagaTemplate(RetroTemplate, SagaMod):
 
-    @auto_prop_cached
+    @cached_property
     def is_saga(self) -> bool:
         return True
 
-    @auto_prop_cached
+    @cached_property
     def has_pinlines(self) -> bool:
         return False
 
-    @auto_prop_cached
+    @cached_property
     def is_split(self) -> bool:
         return False
 
-    @auto_prop_cached
+    @cached_property
     def textbox_reference(self) -> ReferenceLayer:
         return psd.get_reference_layer(LAYERS.TEXTBOX_REFERENCE, self.saga_group)
 
@@ -1230,23 +1283,23 @@ class RetroSagaTemplate(RetroTemplate, SagaMod):
 
 
 class RetroClassTemplate(RetroTemplate, ClassMod):
-    @auto_prop_cached
+    @cached_property
     def is_class(self) -> bool:
         return True
 
-    @auto_prop_cached
+    @cached_property
     def has_pinlines(self) -> bool:
         return False
 
-    @auto_prop_cached
+    @cached_property
     def is_split(self) -> bool:
         return False
 
-    @auto_prop_cached
+    @cached_property
     def textbox_reference(self) -> ReferenceLayer:
         return psd.get_reference_layer(LAYERS.TEXTBOX_REFERENCE, self.class_group)
 
-    @auto_prop_cached
+    @cached_property
     def stage_group(self) -> LayerSet:
         return psd.getLayerSet(LAYERS.STAGE, self.class_group)
 
