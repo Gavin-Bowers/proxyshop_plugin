@@ -1050,7 +1050,8 @@ class RetroTemplate(ClassicTemplate):
             offset += 4
 
         self.text_layer_type.translate(0, offset)
-        self.expansion_symbol_layer.translate(0, offset)
+        if self.expansion_symbol_layer:
+            self.expansion_symbol_layer.translate(0, offset)
         if self.color_indicator_layer:
             self.color_indicator_layer.translate(0, offset)
 
