@@ -1046,11 +1046,13 @@ class RetroTemplate(ClassicTemplate):
                 offset = 0
 
         if self.has_pinlines:
-            self.expansion_symbol_layer.resize(90, 90, AnchorPosition.MiddleCenter)
+            if self.expansion_symbol_layer:
+                self.expansion_symbol_layer.resize(90, 90, AnchorPosition.MiddleCenter)
             offset += 4
 
         self.text_layer_type.translate(0, offset)
-        self.expansion_symbol_layer.translate(0, offset)
+        if self.expansion_symbol_layer:
+            self.expansion_symbol_layer.translate(0, offset)
         if self.color_indicator_layer:
             self.color_indicator_layer.translate(0, offset)
 
