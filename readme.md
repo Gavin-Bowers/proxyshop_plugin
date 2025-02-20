@@ -1,4 +1,5 @@
 This is a plugin for [Proxyshop](https://github.com/Investigamer/Proxyshop)
+
 Specifically, the latest version of the main branch
 
 # Showcase
@@ -79,8 +80,6 @@ Specifically, the latest version of the main branch
   </tr>
 </table>
 
-
-
 # Changelog
 
 Updated for Proxyshop 1.14
@@ -105,7 +104,7 @@ The settings are configured to be as accurate to real cards as possible by defau
 
 * Hybrid Devoid cards don't render properly (Drowner of Truth)
 * Land Sagas don't render properly (Urza's saga)
-* 
+
 I don't intend to fix either issues since each would be a lot of work for a single card
 
 # Feedback
