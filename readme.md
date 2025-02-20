@@ -1,4 +1,5 @@
 This is a plugin for [Proxyshop](https://github.com/Investigamer/Proxyshop)
+Specifically, the latest version of the main branch
 
 # Showcase
 
@@ -56,9 +57,29 @@ This is a plugin for [Proxyshop](https://github.com/Investigamer/Proxyshop)
     <td valign="top"><img align=top src= https://github.com/user-attachments/assets/d2c0a913-56f2-4a6c-add7-4103335cefbc></td>
     <td valign="top"><img align=top src= https://github.com/user-attachments/assets/fe58f681-24bc-491a-ab86-a4db6bd3e7f9></td>
     <td valign="top"><img align=top src= https://github.com/user-attachments/assets/66abb965-a6ce-41ae-bda8-9408fb3dc29e></td>
-
+  </tr>
+  <tr>
+      <th scope="row" colspan="5">Different textbox sizes. Also nicknames</th>
+  </tr>
+  <tr>
+    <td valign="top"><img align=top src= https://github.com/user-attachments/assets/aadf035b-8a74-4cdf-8326-0faf986b393b></td>
+    <td valign="top"><img align=top src= https://github.com/user-attachments/assets/a5e23ff7-e2b3-4877-911a-c9ad32fc5596></td>
+    <td valign="top"><img align=top src= https://github.com/user-attachments/assets/56e4b5d8-1819-4a43-8547-1d19b8453b07></td>
+    <td valign="top"><img align=top src= https://github.com/user-attachments/assets/4ffb4548-b173-4d74-9554-911204f9613d></td>
+  </tr>
+  <tr>
+      <th scope="row" colspan="5">Lands</th>
+  </tr>
+  <tr>
+    <td valign="top"><img align=top src= https://github.com/user-attachments/assets/53520045-ce22-4d35-9dac-3afb1ca41568></td>
+    <td valign="top"><img align=top src= https://github.com/user-attachments/assets/d9341a96-c35d-4547-b23f-16aba79bff05></td>
+    <td valign="top"><img align=top src= https://github.com/user-attachments/assets/31018a9f-fd05-4562-9235-cacc31141889></td>
+    <td valign="top"><img align=top src= https://github.com/user-attachments/assets/91f0fcee-1049-423c-83db-30ccc4cca7f9></td>
+    <td valign="top"><img align=top src= https://github.com/user-attachments/assets/2c67c046-f8d9-4520-b18e-9f6b38f5e5c1></td>
   </tr>
 </table>
+
+
 
 # Changelog
 
@@ -68,13 +89,24 @@ Updated for Proxyshop 1.14
 
 Settings now work!
 
-The settings are configured to be as accurate as possible by default. However, the template has some differences from real cards for quality reasons.
-* Textboxes are cropped in slightly to remove the bevel, and it's recreated in photoshop. This is to give more control and get cleaner lines
-* The dual land textboxes were created by color grading the basic land textboxes to match the dual lands. This allows me to make dual lands programmatically
-* The textboxes for artifact and blue cards are AI upscaled, since the results were so good, and they really benefitted from the added quality
-* Colorless cards from MH3 are implemented as a filter for artifact cards. I did this for greater flexibility. I also changed the textbox color overlay to align with edges of the bevel. The overlay on the actual cards doesn't. I don't understand why they did it that way
-* The pinline color for red lands is based on 7th edition while the others are from CMM, because the CMM mountain is weirdly desaturated
-* I didn't include the old basic land watermarks. The watermarks added by Proxyshop are the modern ones which are different
+The settings are configured to be as accurate to real cards as possible by default
+
+## Creative liberties
+
+* Textboxes are cropped in slightly to remove the bevels and they're recreated in photoshop - Gives cleaner lines and more creative control
+* Dual land textboxes are basic land textboxes colored to match the dual lands - Allows rendering dual lands programmatically
+* Textbox color overlay on colorless cards aligns with edges of the bevel - Looks better
+* Blue card textboxes are the same size as red and white cards instead of a few pixels off - Makes a lot of functionality easier to implement
+* The pinline color for red lands is based on 7th edition while the other colors are from Commander Masters - The CMM mountain is unusually desaturated
+* The bevels on all colors were recreated using the AI extended frame textures and overlays - Yielded more crisp results
+* Basic lands use modern watermarks instead of the old ones - I didn't bother to add them
+
+# Known Issues
+
+* Hybrid Devoid cards don't render properly (Drowner of Truth)
+* Land Sagas don't render properly (Urza's saga)
+* 
+I don't intend to fix either issues since each would be a lot of work for a single card
 
 # Feedback
 
