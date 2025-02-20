@@ -60,13 +60,14 @@ Specifically, the latest version of the main branch
     <td valign="top"><img align=top src= https://github.com/user-attachments/assets/66abb965-a6ce-41ae-bda8-9408fb3dc29e></td>
   </tr>
   <tr>
-      <th scope="row" colspan="5">Different textbox sizes. Also nicknames</th>
+      <th scope="row" colspan="5">Textbox sizes, Textless, and Floating Frame</th>
   </tr>
   <tr>
     <td valign="top"><img align=top src= https://github.com/user-attachments/assets/aadf035b-8a74-4cdf-8326-0faf986b393b></td>
     <td valign="top"><img align=top src= https://github.com/user-attachments/assets/a5e23ff7-e2b3-4877-911a-c9ad32fc5596></td>
     <td valign="top"><img align=top src= https://github.com/user-attachments/assets/56e4b5d8-1819-4a43-8547-1d19b8453b07></td>
     <td valign="top"><img align=top src= https://github.com/user-attachments/assets/4ffb4548-b173-4d74-9554-911204f9613d></td>
+    <td valign="top"><img align=top src= https://github.com/user-attachments/assets/a40929de-3ed9-4a59-8eb3-5d0e375474c5></td>
   </tr>
   <tr>
       <th scope="row" colspan="5">Lands</th>
@@ -79,6 +80,7 @@ Specifically, the latest version of the main branch
     <td valign="top"><img align=top src= https://github.com/user-attachments/assets/2c67c046-f8d9-4520-b18e-9f6b38f5e5c1></td>
   </tr>
 </table>
+
 
 # Changelog
 
@@ -96,16 +98,16 @@ The settings are configured to be as accurate to real cards as possible by defau
 * Dual land textboxes are basic land textboxes colored to match the dual lands - Allows rendering dual lands programmatically
 * Textbox color overlay on colorless cards aligns with edges of the bevel - Looks better
 * Blue card textboxes are the same size as red and white cards instead of a few pixels off - Makes a lot of functionality easier to implement
-* The pinline color for red lands is based on 7th edition while the other colors are from Commander Masters - The CMM mountain is unusually desaturated
-* The bevels on all colors were recreated using the AI extended frame textures and overlays - Yielded more crisp results
-* Basic lands use modern watermarks instead of the old ones - I didn't bother to add them
+* The pinline color for red lands is based on 7th edition while the other colors are from Commander Masters - I like the more saturated red
+* The bevels on all colors were recreated using the AI extended frame textures and overlays - Required by texture extension process
+* Basic lands use modern watermarks instead of the old ones
 
 # Known Issues
 
 * Hybrid Devoid cards don't render properly (Drowner of Truth)
 * Land Sagas don't render properly (Urza's saga)
 
-I don't intend to fix either issues since each would be a lot of work for a single card
+I don't intend to fix these issues since each would be a lot of work for a single card
 
 # Feedback
 
