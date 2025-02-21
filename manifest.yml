@@ -20,17 +20,22 @@ retro.psd:
   templates:
     Retro:
       RetroTemplate:
-        - transform_front
-        - transform_back
-        - mdfc_front
-        - mdfc_back
         - normal
+      RetroPWTemplate:
         - planeswalker
-        - pw_mdfc_front
-        - pw_mdfc_back
-        - pw_tf_front
-        - pw_tf_back
       RetroSagaTemplate:
         - saga
       RetroClassTemplate:
         - class
+      RetroTFTemplate:
+        - transform_front
+        - transform_back
+      RetroMDFCTemplate:
+        - mdfc_front
+        - mdfc_back
+      RetroPWTFTemplate:
+        - pw_tf_front
+        - pw_tf_back
+      RetroPWMDFCTemplate:
+        - pw_mdfc_front
+        - pw_mdfc_back

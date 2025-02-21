@@ -122,29 +122,11 @@ options = ["2", "3", "4"]
 
 
 
-[LANDS]
-title = "Lands"
+[PLANESWALKER]
+title = "Planeswalker Settings"
 
-[LANDS."legends_style_lands"]
-title = "Legends Style Lands"
-desc = """Gives lands a lighter color-grading, golden textbox color, and shiny golden pinlines like the lands from Legends"""
-type = "bool"
-default = 0
-
-[LANDS."gold_textbox_lands"]
-title = "Gold Textbox on Lands"
-desc = """Makes the textbox on all nonbasic lands gold, like in fifth edition"""
-type = "bool"
-default = 0
-
-[LANDS."textbox_bevels_on_gold_lands"]
-title = "Textbox Bevels on Gold Lands"
-desc = """Makes gold lands have textbox bevels. Real cards don't have them, which I think is strange"""
-type = "bool"
-default = 1
-
-[LANDS."gold_textbox_pinline_lands"]
-title = "Gold Texbox Pinlines on Lands"
-desc = """Makes the textbox pinlines on all nonbasic lands gold, like in fifth edition"""
+[PLANESWALKER."verbose"]
+title = "Verbose Planeswalkers"
+desc = """Makes planeswalker explain the mechanics, like the secret lair planeswalkers"""
 type = "bool"
 default = 0

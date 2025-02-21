@@ -148,3 +148,16 @@ title = "Gold Texbox Pinlines on Lands"
 desc = """Makes the textbox pinlines on all nonbasic lands gold, like in fifth edition"""
 type = "bool"
 default = 0
+
+
+
+[DOUBLEFACED]
+title = "Double Faced Cards"
+
+[DOUBLEFACED."notch"]
+title = "Transform and MDFC Notch"
+desc = """Adds a notch to the bottom right and left of transforming and modal double faced cards respectively.
+On transforming cards the notch contains the power and toughness of the creature on the backside.
+Enabling this setting disables irregular textboxes."""
+type = "bool"
+default = 0

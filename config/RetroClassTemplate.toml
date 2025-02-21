@@ -122,29 +122,13 @@ options = ["2", "3", "4"]
 
 
 
-[LANDS]
-title = "Lands"
+[DOUBLEFACED]
+title = "Double Faced Cards"
 
-[LANDS."legends_style_lands"]
-title = "Legends Style Lands"
-desc = """Gives lands a lighter color-grading, golden textbox color, and shiny golden pinlines like the lands from Legends"""
-type = "bool"
-default = 0
-
-[LANDS."gold_textbox_lands"]
-title = "Gold Textbox on Lands"
-desc = """Makes the textbox on all nonbasic lands gold, like in fifth edition"""
-type = "bool"
-default = 0
-
-[LANDS."textbox_bevels_on_gold_lands"]
-title = "Textbox Bevels on Gold Lands"
-desc = """Makes gold lands have textbox bevels. Real cards don't have them, which I think is strange"""
-type = "bool"
-default = 1
-
-[LANDS."gold_textbox_pinline_lands"]
-title = "Gold Texbox Pinlines on Lands"
-desc = """Makes the textbox pinlines on all nonbasic lands gold, like in fifth edition"""
+[DOUBLEFACED."notch"]
+title = "Transform and MDFC Notch"
+desc = """Adds a notch to the bottom right and left of transforming and modal double faced cards respectively.
+On transforming cards the notch contains the power and toughness of the creature on the backside.
+Enabling this setting disables irregular textboxes."""
 type = "bool"
 default = 0
