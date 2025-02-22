@@ -2,7 +2,7 @@ This is a plugin for [Proxyshop](https://github.com/Investigamer/Proxyshop)
 
 Specifically, the latest version of the main branch
 
-You need the photoshop templates from [this folder](https://drive.google.com/drive/folders/18upnbPjIGhHwavfAQCX2zgY6HpfgGwz1?usp=drive_link)
+You need the photoshop templates from [this folder](https://drive.google.com/drive/folders/18UIUWx5MqmtJcN3f7KlNAuihnD2ScRYu?usp=drive_link)
 
 # Showcase
 
