@@ -81,8 +81,17 @@ You need the photoshop templates from [this folder](https://drive.google.com/dri
     <td valign="top"><img align=top src= https://github.com/user-attachments/assets/91f0fcee-1049-423c-83db-30ccc4cca7f9></td>
     <td valign="top"><img align=top src= https://github.com/user-attachments/assets/2c67c046-f8d9-4520-b18e-9f6b38f5e5c1></td>
   </tr>
+    <tr>
+      <th scope="row" colspan="5">Modal Double Faced Cards</th>
+  </tr>
+  <tr>
+    <td valign="top"><img align=top src= https://github.com/user-attachments/assets/a5bfb8d4-e17d-41a9-90c4-7fca803623a9></td>
+    <td valign="top"><img align=top src= https://github.com/user-attachments/assets/2213b2d8-0d1c-4d02-b89a-aafce150a524></td>
+    <td valign="top"><img align=top src= https://github.com/user-attachments/assets/33b321a1-5cd4-41da-96d7-901b187d6c40></td>
+    <td valign="top"><img align=top src= https://github.com/user-attachments/assets/c37790af-c91d-4651-a699-9202fd564773></td>
+    <td valign="top"><img align=top src= https://github.com/user-attachments/assets/9c1aba93-790e-48c4-b866-c3bcb30096b8></td>
+  </tr>
 </table>
-
 
 # Changelog
 
