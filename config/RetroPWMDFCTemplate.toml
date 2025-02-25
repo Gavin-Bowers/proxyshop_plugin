@@ -122,13 +122,12 @@ options = ["2", "3", "4"]
 
 
 
-[DOUBLEFACED]
-title = "Double Faced Cards"
+[MDFC]
+title = "Modal Double Faced Cards"
 
-[DOUBLEFACED."notch"]
-title = "Transform and MDFC Notch"
-desc = """Adds a notch to the bottom right and left of transforming and modal double faced cards respectively.
-On transforming cards the notch contains the power and toughness of the creature on the backside.
+[MDFC."mdfc_notch"]
+title = "MDFC Notch"
+desc = """Adds a notch to the bottom left of modal double faced cards.
 Enabling this setting disables irregular textboxes."""
 type = "bool"
 default = 0

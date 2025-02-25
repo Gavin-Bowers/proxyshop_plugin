@@ -45,12 +45,6 @@ With this disabled, the color still applies, but it uses the subtle shading on c
 type = "bool"
 default = 1
 
-[GENERAL."all_transparent"]
-title = "Transparent Cards"
-desc = """Makes all cardframes transparent"""
-type = "bool"
-default = 0
-
 [GENERAL."transparent_opacity"]
 title = "Transparent Opacity"
 desc = """Opacity setting for transparent cards"""
@@ -84,6 +78,17 @@ desc = """Turns off all textbox bevels"""
 type = "bool"
 default = 0
 
+[GENERAL."add_promo_star"]
+title = "Add Promo Star"
+desc = """Adds the promo star seen on old foil cards"""
+type = "bool"
+default = 0
+
+[GENERAL."align_collector_left"]
+title = "Left Justify Collector's Info"
+desc = """Makes the collector's info appear on the left of the card rather than centered"""
+type = "bool"
+default = 0
 
 
 [PINLINES]

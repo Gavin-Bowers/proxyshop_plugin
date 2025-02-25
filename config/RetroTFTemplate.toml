@@ -151,13 +151,27 @@ default = 0
 
 
 
-[DOUBLEFACED]
-title = "Double Faced Cards"
+[TF]
+title = "Transforming Double Faced Cards"
 
-[DOUBLEFACED."notch"]
-title = "Transform and MDFC Notch"
-desc = """Adds a notch to the bottom right and left of transforming and modal double faced cards respectively.
-On transforming cards the notch contains the power and toughness of the creature on the backside.
+[TF."notch"]
+title = "Transform Notch"
+desc = """Adds a notch to the bottom right of transforming cards.
+The notch contains the power and toughness of the creature on the backside.
 Enabling this setting disables irregular textboxes."""
+type = "bool"
+default = 0
+
+[TF."icon_side"]
+title = "Transform Icon On Right Side On Back Face"
+desc = """Places the transform icon in the top right corner of the back face, like modern transform cards.
+If disabled, the icon is in the top left corner, same as the front side icon"""
+type = "bool"
+default = 1
+
+[TF."set_symbol_on_back"]
+title = "Set Symbol on Back Face"
+desc = """Makes the set symbol shop up on the front and back face, like older transform cards.
+Newer cards just have it on the front face"""
 type = "bool"
 default = 0

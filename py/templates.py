@@ -2,13 +2,17 @@
 * Plugin: [Gavin]
 """
 # Standard Library
+import re
 from typing import Optional, Union
 from functools import cached_property
 
 # Third Party
 from PIL import Image
+# noinspection PyProtectedMember
 from photoshop.api import AnchorPosition
+# noinspection PyProtectedMember
 from photoshop.api._artlayer import ArtLayer
+# noinspection PyProtectedMember
 from photoshop.api._layerSet import LayerSet
 
 # Local
@@ -19,7 +23,7 @@ from src import CFG
 from src.enums.layers import LAYERS
 from src.utils.adobe import ReferenceLayer, LayerContainerTypes
 from src.helpers import get_line_count, set_text_size
-from src.templates import ClassicTemplate, ClassMod
+from src.templates import ClassMod, NormalTemplate
 from src.templates.saga import SagaMod
 from src.text_layers import (
     TextField,
@@ -28,16 +32,38 @@ from src.text_layers import (
     FormattedTextField,
     ScaledWidthTextField
 )
+from src.enums.settings import (
+    CollectorMode
+)
+from src.enums.mtg import (
+    MagicIcons,
+    LayoutType,
+)
 
 # TODO
-# Nyx, colored artifacts
+# Nyx
 # Legend Crown
 # Battles
 # Split Cards, rooms, aftermath and meld
 # Flip Cards
-# Replace en dashes in planeswalker loyalty abilities with em dashes (−)
+# Adventure, Prototype, Mutate, Level Up
 
-# Make Retro inherit from core or normal instead of classic?
+# planeswalker dashes are thinner than I'd like, but hyphens are too short
+# not sure how to fix that
+
+# historically accurate set symbols?
+# boomerification of rules text?
+# boomer mdfc text
+# old basic land watermarks
+# color options
+# improve color indicators and saga chapter icons
+
+# Gatherer scraper for printed card text (you can get a multiverse id from scryfall)
+# and use it to scrape the printed text from gatherer
+
+##################################################
+# Utility functions
+##################################################
 
 def set_layer_visibility(
     visible: bool,
@@ -73,7 +99,209 @@ def disable(
 ):
     set_layer_visibility(False, layer, group)
 
-class RetroTemplate(ClassicTemplate):
+##################################################
+# Text Processing functions
+##################################################
+
+def replace_hyphens_regex(text: str) -> str:
+    """
+    Replace hyphens with em-dashes in patterns like "-1:" or "-12:"
+    Used for planeswalker rules text
+    """
+    pattern = r'-(\d{1,2}:)'
+    return re.sub(pattern, '–\\1', text)
+
+def indefinite_article_for_number(number: str) -> str:
+    if number.startswith(('8', '11', '18')) or number == '18':
+        return "an"
+    else:
+        return "a"
+
+KEYWORDS = ["Eerie", "Battalion", "Bloodrush", "Channel", "Chroma", "Cohort", "Constellation",
+            "Converge", "Delirium", "Domain", "Fateful hour", "Ferocious", "Formidable", "Grandeur",
+            "Hellbent", "Heroic", "Imprint", "Inspired", "Join forces", "Kinship", "Landfall",
+            "Lieutenant", "Metalcraft", "Morbid", "Parley", "Radiance", "Raid", "Rally", "Spell mastery",
+            "Strive", "Sweep", "Tempting offer", "Threshold", "Will of the council", "Adamant",
+            "Addendum", "Council's dilemma", "Eminence", "Enrage", "Hero's Reward", "Kinfall",
+            "Landship", "Legacy", "Revolt", "Underdog", "Undergrowth", "Descend", "Fathomless descent",
+            "Magecraft", "Teamwork", "Pack tactics", "Coven", "Alliance", "Corrupted", "Secret council",
+            "Celebration", "Paradox", "Will of the Planeswalkers", "Survival", "Valiant",
+            "Start your engines!", "Living weapon", "Jump-start", "Commander ninjutsu",
+            "Legendary landwalk", "Nonbasic landwalk", "Megamorph", "Haunt", "Forecast", "Graft",
+            "Fortify", "Frenzy", "Gravestorm", "Hideaway", "Level Up", "Infect", "Reach", "Rampage",
+            "Phasing", "Multikicker", "Morph", "Provoke", "Modular", "Ninjutsu", "Replicate", "Recover",
+            "Poisonous", "Prowl", "Reinforce", "Persist", "Retrace", "Rebound", "Miracle", "Overload",
+            "Outlast", "Prowess", "Renown", "Myriad", "Shroud", "Trample", "Vigilance", "Storm",
+            "Soulshift", "Splice", "Transmute", "Ripple", "Suspend", "Vanishing", "Transfigure",
+            "Wither", "Undying", "Soulbond", "Unleash", "Ascend", "Assist", "Afterlife", "Companion",
+            "Fabricate", "Embalm", "Escape", "Fuse", "Menace", "Ingest", "Melee", "Improvise", "Mentor",
+            "Partner", "Mutate", "Tribute", "Surge", "Skulk", "Undaunted", "Riot", "Spectacle",
+            "Forestwalk", "Islandwalk", "Mountainwalk", "Double strike", "Cumulative upkeep",
+            "First strike", "Scavenge", "Encore", "Deathtouch", "Defender", "Amplify", "Affinity",
+            "Bushido", "Convoke", "Bloodthirst", "Absorb", "Aura Swap", "Changeling", "Conspire",
+            "Cascade", "Annihilator", "Battle Cry", "Cipher", "Bestow", "Dash", "Awaken", "Crew",
+            "Aftermath", "Afflict", "Flanking", "Foretell", "Fading", "Fear", "Eternalize", "Entwine",
+            "Epic", "Dredge", "Delve", "Evoke", "Exalted", "Evolve", "Extort", "Dethrone", "Exploit",
+            "Devoid", "Emerge", "Escalate", "Flying", "Haste", "Hexproof", "Indestructible",
+            "Intimidate", "Lifelink", "Horsemanship", "Kicker", "Madness", "Swampwalk", "Desertwalk",
+            "Craft", "Plainswalk", "Split second", "Augment", "Double agenda", "Reconfigure", "Ward",
+            "Partner with", "Daybound", "Nightbound", "Decayed", "Disturb", "Squad", "Enlist",
+            "Read Ahead", "Ravenous", "Blitz", "Offering", "Living metal", "Backup", "Banding",
+            "Hidden agenda", "For Mirrodin!", "Friends forever", "Casualty", "Protection",
+            "Compleated", "Devour", "Enchant", "Flash", "Boast", "Demonstrate", "Sunburst",
+            "Flashback", "Cycling", "Equip", "Buyback", "Hexproof from", "More Than Meets the Eye",
+            "Cleave", "Champion", "Specialize", "Training", "Prototype", "Toxic", "Unearth",
+            "Intensity", "Plainscycling", "Swampcycling", "Typecycling", "Wizardcycling",
+            "Mountaincycling", "Basic landcycling", "Islandcycling", "Forestcycling", "Slivercycling",
+            "Landcycling", "Bargain", "Choose a background", "Echo", "Disguise", "Doctor's companion",
+            "Landwalk", "Umbra armor", "Freerunning", "Spree", "Saddle", "Shadow", "Offspring",
+            "Impending", "Gift", "Exhaust"]
+
+def is_keyword_section(input_string: str) -> bool:
+    for keyword in KEYWORDS:
+        if input_string.startswith(keyword):
+            return True
+    return False
+
+def lowercase_first_char(input_string: str) -> str:
+    if not input_string:
+        return ""
+    return input_string[0].lower() + input_string[1:]
+
+
+def add_and_to_list(text: str) -> str:
+    """Adds and to lists, respecting Oxford comma"""
+    comma_count = text.count(',')
+
+    if comma_count == 0:
+        return text
+    elif comma_count == 1:
+        return re.sub(r',\s*([^,]*)$', r' and \1', text)
+    else:
+        return re.sub(r',\s*([^,]*)$', r', and \1', text)
+
+
+def format_leveler_abilities(abilities) -> str | None:
+    if abilities == "" or abilities is None:
+        return None
+
+    if "\n" in abilities:
+        keywords, ability = abilities.split("\n")
+        abilities = f"{lowercase_first_char(keywords)}, and \"{ability}\""
+    else:
+        if is_keyword_section(abilities):
+            abilities = f"{add_and_to_list(lowercase_first_char(abilities))}."
+        else:
+            abilities = f"\"{abilities}\""
+
+    return abilities
+
+color_word_map = {
+    "W": "white",
+    "U": "blue",
+    "B": "black",
+    "R": "red",
+    "G": "green",
+    "C": "colorless"
+}
+
+def get_bigger_textbox_size(size1, size2) -> str:
+    sizes = ["Small", "Medium", "Normal"]
+    size_ranks = {size: i for i, size in enumerate(sizes)}
+    return sizes[max(size_ranks.get(size1), size_ranks.get(size2))]
+
+def get_smaller_textbox_size(size1, size2) -> str:
+    sizes = ["Small", "Medium", "Normal"]
+    size_ranks = {size: i for i, size in enumerate(sizes)}
+    return sizes[min(size_ranks.get(size1), size_ranks.get(size2))]
+
+fade_mappings = {
+    "WU": ("Left", "Right", "W", "U"),
+    "WB": ("Left", "Right", "W", "B"),
+    "RW": ("Right", "Left", "W", "R"),
+    "GW": ("Right", "Left", "W", "G"),
+    "UB": ("Left", "Right", "U", "B"),
+    "UR": ("Left", "Right", "U", "R"),
+    "GU": ("Right", "Left", "U", "G"),
+    "BR": ("Left", "Right", "B", "R"),
+    "BG": ("Left", "Right", "B", "G"),
+    "RG": ("Left", "Right", "R", "G")
+}
+
+# This includes color orders which don't normally exist on cards
+# Used for adventure card textboxes
+extended_fade_mappings = {
+    "WU": ("Left", "Right", "W", "U"),
+    "WB": ("Left", "Right", "W", "B"),
+    "RW": ("Right", "Left", "W", "R"),
+    "GW": ("Right", "Left", "W", "G"),
+    "UB": ("Left", "Right", "U", "B"),
+    "UR": ("Left", "Right", "U", "R"),
+    "GU": ("Right", "Left", "U", "G"),
+    "BR": ("Left", "Right", "B", "R"),
+    "BG": ("Left", "Right", "B", "G"),
+    "RG": ("Left", "Right", "R", "G"),
+    "UW": ("Right", "Left", "W", "U"),
+    "BW": ("Right", "Left", "W", "B"),
+    "WR": ("Left", "Right", "W", "R"),
+    "WG": ("Left", "Right", "W", "G"),
+    "BU": ("Right", "Left", "U", "B"),
+    "RU": ("Right", "Left", "U", "R"),
+    "UG": ("Left", "Right", "U", "G"),
+    "RB": ("Right", "Left", "B", "R"),
+    "GB": ("Right", "Left", "B", "G"),
+    "GR": ("Right", "Left", "R", "G")
+}
+
+ordered_textbox_textures = [
+    "Legends",
+    "Land",
+    "WL",
+    "UL",
+    "BL",
+    "RL",
+    "GL",
+    "WL Dual",
+    "UL Dual",
+    "BL Dual",
+    "RL Dual",
+    "GL Dual",
+    "W",
+    "U",
+    "B",
+    "R",
+    "G",
+    "Gold",
+    "Artifact",
+    "Colorless"
+]
+
+ordered_frame_textures = [
+    "W",
+    "U",
+    "B",
+    "R",
+    "G",
+    "Gold",
+    "Colorless",
+    "Artifact",
+    "Land",
+    "Legends Land"
+]
+
+def sort_frame_textures(inputs: list[str]) -> list[str]:
+    return sort_elements_by_position(inputs, ordered_frame_textures)
+
+def sort_textbox_textures(inputs: list[str]) -> list[str]:
+    return sort_elements_by_position(inputs, ordered_textbox_textures)
+
+def sort_elements_by_position(inputs: list[str], positions: list[str]) -> list[str]:
+    position_map = {item: i for i, item in enumerate(positions)}
+    return sorted(inputs, key=lambda item: position_map.get(item, float('inf')))
+
+
+
+class RetroTemplate(NormalTemplate):
     """Retro frames from MM3, MH3, and RVR."""
     frame_suffix = 'Retro'
 
@@ -89,87 +317,69 @@ class RetroTemplate(ClassicTemplate):
         return CFG.get_setting(
             section="GENERAL",
             key="tombstone",
-            is_bool=False
-        )
+            is_bool=False)
 
     @property
     def cfg_textbox_size(self):
         return CFG.get_setting(
             section="GENERAL",
             key="textbox_size",
-            is_bool=False
-        )
+            is_bool=False)
 
     @property
     def cfg_irregular_textboxes(self):
         return CFG.get_setting(
             section="GENERAL",
-            key="use_irregular_textboxes",
-        )
+            key="use_irregular_textboxes")
 
     @property
     def cfg_colorless_transparent(self):
         return CFG.get_setting(
             section="GENERAL",
-            key="colorless_transparent",
-        )
+            key="colorless_transparent")
 
     @property
     def cfg_colored_bevels_on_devoid(self):
         return CFG.get_setting(
             section="GENERAL",
-            key="use_colored_bevels_on_devoid",
-        )
-
-    @property
-    def cfg_all_transparent(self):
-        return CFG.get_setting(
-            section="GENERAL",
-            key="all_transparent",
-        )
+            key="use_colored_bevels_on_devoid")
 
     @property
     def cfg_transparent_opacity(self):
         return float(CFG.get_setting(
             section="GENERAL",
             key="transparent_opacity",
-            is_bool=False
-        ))
+            is_bool=False))
 
     @property
     def cfg_floating_frame(self):
         return CFG.get_setting(
             section="GENERAL",
-            key="use_floating_frame",
-        )
+            key="use_floating_frame")
 
     @property
     def cfg_split_hybrid(self):
         return CFG.get_setting(
             section="GENERAL",
-            key="split_hybrid",
-        )
+            key="split_hybrid")
 
     @property
     def cfg_split_all(self):
         return CFG.get_setting(
             section="GENERAL",
-            key="split_all",
-        )
+            key="split_all")
 
     @property
     def cfg_dual_textbox_bevels(self):
         return not CFG.get_setting(
             section="GENERAL",
-            key="standardize_dual_fade_bevels",
-        )
+            key="standardize_dual_fade_bevels")
 
     @property
     def cfg_disable_textbox_bevels(self):
         return CFG.get_setting(
             section="GENERAL",
-            key="disable_textbox_bevels",
-        )
+            key="disable_textbox_bevels")
 
     # Pinlines
 
@@ -177,37 +387,32 @@ class RetroTemplate(ClassicTemplate):
     def cfg_pinlines_on_multicolored(self):
         return CFG.get_setting(
             section="PINLINES",
-            key="multicolored",
-        )
+            key="multicolored")
 
     @property
     def cfg_pinlines_on_artifacts(self):
         return CFG.get_setting(
             section="PINLINES",
-            key="artifacts",
-        )
+            key="artifacts")
 
     @property
     def cfg_pinlines_on_all_cards(self):
         return CFG.get_setting(
             section="PINLINES",
-            key="all",
-        )
+            key="all")
 
     @property
     def cfg_color_all_pinlines(self):
         return CFG.get_setting(
             section="PINLINES",
-            key="color_all",
-        )
+            key="color_all")
 
     @property
     def cfg_max_pinline_colors(self):
         return int(CFG.get_setting(
             section="PINLINES",
             key="max_colors",
-            is_bool=False
-        ))
+            is_bool=False))
 
     # Lands
 
@@ -215,29 +420,25 @@ class RetroTemplate(ClassicTemplate):
     def cfg_legends_style_lands(self):
         return CFG.get_setting(
             section="LANDS",
-            key="legends_style_lands",
-        )
+            key="legends_style_lands")
 
     @property
     def cfg_gold_textbox_lands(self):
         return CFG.get_setting(
             section="LANDS",
-            key="gold_textbox_lands",
-        )
+            key="gold_textbox_lands")
 
     @property
     def cfg_gold_textbox_pinline_lands(self):
         return CFG.get_setting(
             section="LANDS",
-            key="gold_textbox_pinline_lands",
-        )
+            key="gold_textbox_pinline_lands")
 
     @property
     def cfg_textbox_bevels_on_gold_lands(self):
         return CFG.get_setting(
             section="LANDS",
-            key="textbox_bevels_on_gold_lands",
-        )
+            key="textbox_bevels_on_gold_lands")
 
     # Planeswalker
 
@@ -245,22 +446,60 @@ class RetroTemplate(ClassicTemplate):
     def cfg_verbose_planeswalkers(self):
         return CFG.get_setting(
             section="PLANESWALKER",
-            key="verbose",
-        )
+            key="verbose")
 
-    # Double Faced
+    # MDFC
 
     @property
-    def cfg_has_notch(self):
+    def cfg_has_mdfc_notch(self):
         return CFG.get_setting(
-            section="DOUBLEFACED",
-            key="notch",
-            is_bool=True,
-            default=False,
-        )
+            section="MDFC",
+            key="mdfc_notch")
+
+    # Transform
+
+    @property
+    def cfg_has_tf_notch(self):
+        return CFG.get_setting(
+            section="TF",
+            key="notch")
+
+    @property
+    def cfg_tf_icon_on_right_side(self):
+        return CFG.get_setting(
+            section="TF",
+            key="icon_side")
+
+    @property
+    def cfg_set_symbol_on_back(self):
+        return CFG.get_setting(
+            section="TF",
+            key="set_symbol_on_back")
+
+    # Copied from ClassicTemplate
+
+    @cached_property
+    def is_promo_star(self) -> bool:
+        return CFG.get_setting(
+            section='GENERAL',
+            key='add_promo_star')
+
+    # @cached_property
+    # def is_extended(self) -> bool:
+    #     """bool: Whether to render using Extended Art framing."""
+    #     return CFG.get_setting(
+    #         section='FRAME',
+    #         key='Extended.Art',
+    #         default=False)
+
+    @cached_property
+    def is_align_collector_left(self) -> bool:
+        return CFG.get_setting(
+            section='GENERAL',
+            key='align_collector_left')
 
     ##################################################
-    # Layers and Groups
+    # Layers
     ##################################################
 
     @cached_property
@@ -363,8 +602,127 @@ class RetroTemplate(ClassicTemplate):
     def mdfc_group(self) -> LayerSet:
         return psd.getLayerSet("MDFC", self.text_group)
 
+    @cached_property
+    def mdfc_bottom_group(self) -> LayerSet:
+        return psd.getLayerSet("Bottom", self.mdfc_group)
+
+    @cached_property
+    def adventure_group(self) -> LayerSet:
+        return psd.getLayerSet("Adventure", self.text_group)
+
     ##################################################
-    # Added layout logic
+    # Text Layers
+    ##################################################
+
+    @cached_property
+    def text_layer_type(self) -> Optional[ArtLayer]:
+        if not self.has_textbox:
+            return None
+        return psd.getLayer(LAYERS.TYPE_LINE, self.text_group)
+
+    @cached_property
+    def text_layer_name(self) -> ArtLayer:
+        return psd.getLayer(LAYERS.NAME, self.text_group)
+
+    @cached_property
+    def text_layer_nickname(self) -> ArtLayer:
+        return psd.getLayer("Nickname", self.text_group)
+
+    @cached_property
+    def text_layer_rules(self) -> ArtLayer:
+        return psd.getLayer(LAYERS.RULES_TEXT, self.text_group)
+
+    @cached_property
+    def nickname_shape(self) -> ArtLayer:
+        return psd.getLayer("Nickname Box", self.text_group)
+
+    @cached_property
+    def pt_length(self) -> int:
+        return len(f'{self.layout.power}{self.layout.toughness}')
+
+    ##################################################
+    # Collector Info Methods
+    ##################################################
+
+    # Copied from ClassicTemplate
+    def process_layout_data(self) -> None:
+        """Remove rarity letter from collector data."""
+        super().process_layout_data()
+        self.layout.collector_data = self.layout.collector_data[:-2] if (
+                '/' in self.layout.collector_data
+        ) else self.layout.collector_data[2:]
+
+    def collector_info(self) -> None:
+        """Format and add the collector info at the bottom."""
+
+        # Which collector info mode?
+        if CFG.collector_mode in [
+            CollectorMode.Default, CollectorMode.Modern
+        ] and self.layout.collector_data:
+            layers = self.collector_info_authentic()
+        elif CFG.collector_mode == CollectorMode.ArtistOnly:
+            layers = self.collector_info_artist_only()
+        else:
+            layers = self.collector_info_basic()
+
+        # Shift collector text
+        if self.is_align_collector_left:
+            [psd.align_left(n, ref=self.collector_reference.dims) for n in layers]
+
+    # noinspection DuplicatedCode
+    def collector_info_basic(self) -> list[ArtLayer]:
+        """Called to generate basic collector info."""
+
+        # Get artist and info layers
+        artist = psd.getLayer(LAYERS.ARTIST, self.legal_group)
+        info = psd.getLayer(LAYERS.SET, self.legal_group)
+
+        # Fill optional promo star
+        if self.is_collector_promo:
+            psd.replace_text(info, "•", MagicIcons.COLLECTOR_STAR)
+
+        # Apply the collector info
+        if self.layout.lang != 'en':
+            psd.replace_text(info, 'EN', self.layout.lang.upper())
+        psd.replace_text(artist, "Artist", self.layout.artist)
+        psd.replace_text(info, 'SET', self.layout.set)
+        return [artist, info]
+
+    # noinspection DuplicatedCode
+    def collector_info_authentic(self) -> list[ArtLayer]:
+        """Classic presents authentic collector info differently."""
+
+        # Hide basic 'Set' layer
+        psd.getLayer(LAYERS.SET, self.legal_group).visible = False
+
+        # Get artist and info layers, reveal info layer
+        artist = psd.getLayer(LAYERS.ARTIST, self.legal_group)
+        info = psd.getLayer(LAYERS.COLLECTOR, self.legal_group)
+        info.visible = True
+
+        # Fill optional promo star
+        if self.is_collector_promo:
+            psd.replace_text(info, "•", MagicIcons.COLLECTOR_STAR)
+
+        # Apply the collector info
+        psd.replace_text(artist, 'Artist', self.layout.artist)
+        psd.replace_text(info, 'SET', self.layout.set)
+        psd.replace_text(info, 'NUM', self.layout.collector_data)
+        return [artist, info]
+
+    def collector_info_artist_only(self) -> list[ArtLayer]:
+        """Called to generate 'Artist Only' collector info."""
+
+        # Collector layers
+        artist = psd.getLayer(LAYERS.ARTIST, self.legal_group)
+        psd.getLayer(LAYERS.SET, self.legal_group).visible = False
+
+        # Apply the collector info
+        psd.replace_text(artist, "Artist", self.layout.artist)
+        return [artist]
+
+    ##################################################
+    # Layout logic
     ##################################################
 
     @cached_property
@@ -377,7 +735,7 @@ class RetroTemplate(ClassicTemplate):
         return bool('tombstone' in self.layout.frame_effects)
 
 # Equivilent scryfall search:
-# o:"this card is in your graveyard" or o:"return this card from your graveyard" or o:"cast this card from your graveyard'" or o:"put this card from your graveyard" or o:"exile this card from your graveyard" or o:"~ is in your graveyard" or o:"return ~ from your graveyard" or o:"cast ~ from your graveyard'" or o:"put ~ from your graveyard" or o:"exile ~ from your graveyard" or keyword:disturb or keyword:flashback or keyword:Dredge or keyword:Scavenge or keyword:Embalm or keyword:Eternalize or keyword:Aftermath or keyword:Encore or keyword:Escape or keyword:Jump-start or keyword:Recover or keyword:Retrace or keyword:Unearth
+# o:"this card is in your graveyard" or o:"return this card from your graveyard" or o:"cast this card from your graveyard" or o:"put this card from your graveyard" or o:"exile this card from your graveyard" or o:"~ is in your graveyard" or o:"return ~ from your graveyard" or o:"cast ~ from your graveyard" or o:"put ~ from your graveyard" or o:"exile ~ from your graveyard" or keyword:disturb or keyword:flashback or keyword:Dredge or keyword:Scavenge or keyword:Embalm or keyword:Eternalize or keyword:Aftermath or keyword:Encore or keyword:Escape or keyword:Jump-start or keyword:Recover or keyword:Retrace or keyword:Unearth
 # (Excluding named cards)
 
     @cached_property
@@ -483,13 +841,22 @@ class RetroTemplate(ClassicTemplate):
             return psd.get_reference_layer("Floating Frame", self.art_frames_layer)
         if self.is_transparent:
             return psd.get_reference_layer("Transparent Frame", self.art_frames_layer)
+        # This intentionally makes the artbox larger than it should be given the textbox,
+        # so that the art gets cut off at the bottom instead of at the top
+        if self.is_normal:
+            bigger_art_size = get_smaller_textbox_size(self.artref_size_from_art_aspect, self.textbox_size)
+            return psd.get_reference_layer(bigger_art_size, self.art_frames_layer)
         return psd.get_reference_layer(self.textbox_size, self.art_frames_layer)
 
     @cached_property
     def textbox_reference(self) -> ReferenceLayer:
-        if self.is_mdfc:
-            return psd.get_reference_layer(f"Textbox Reference {self.textbox_size} TF", self.text_group)
-        return psd.get_reference_layer(f"Textbox Reference {self.textbox_size}", self.text_group)
+        layer_name = f"Textbox Reference {self.textbox_size}"
+        if self.is_mdfc: layer_name += " MDFC"
+        return psd.get_reference_layer(layer_name, self.text_group)
+
+    @cached_property
+    def collector_reference(self) -> ReferenceLayer:
+        return psd.get_reference_layer(LAYERS.COLLECTOR_REFERENCE, self.legal_group)
 
     @cached_property
     def expansion_reference(self) -> ReferenceLayer:
@@ -514,6 +881,27 @@ class RetroTemplate(ClassicTemplate):
     ##################################################
 
     @cached_property
+    def is_leveler(self) -> bool:
+        return self.layout.card_class == LayoutType.Leveler
+
+    @cached_property
+    def is_prototype(self) -> bool:
+        return self.layout.card_class == LayoutType.Prototype
+
+    @cached_property
+    def is_adventure(self) -> bool:
+        return self.layout.card_class == LayoutType.Adventure
+
+    @cached_property
+    def is_mutate(self) -> bool:
+        return self.layout.card_class == LayoutType.Mutate
+
+    @cached_property
+    def template_suffix(self) -> str:
+        """Add Promo if promo star enabled."""
+        return 'Promo' if self.is_promo_star else ''
+
+    @cached_property
     def has_nickname(self) -> bool:
         """Return True if this a nickname render."""
         if self.flavor_name is not None:
@@ -530,9 +918,11 @@ class RetroTemplate(ClassicTemplate):
     def has_irregular_textbox(self) -> bool:
         if self.is_saga or self.is_class:
             return False
-        if (self.is_transform or self.is_mdfc) and self.cfg_has_notch:
+        if (self.is_transform or self.is_mdfc) and self.cfg_has_tf_notch:
             return False
         if not self.cfg_irregular_textboxes:
+            return False
+        if self.has_pinlines:
             return False
         if self.identity_advanced == "G":
             return True
@@ -543,15 +933,15 @@ class RetroTemplate(ClassicTemplate):
     @cached_property
     def identity_advanced(self) -> str:
         if self.is_land:
-            return "Land"
+            return LAYERS.LAND
         if self.is_split_fade:
-            return "Hybrid"
+            return LAYERS.HYBRID
         if self.is_artifact:
-            return "Artifact"
+            return LAYERS.ARTIFACT
         if self.is_colorless:
-            return "Colorless"
+            return LAYERS.COLORLESS
         if len(self.identity) > 1:
-            return "Gold"
+            return LAYERS.GOLD
         return self.identity
 
     @cached_property
@@ -580,12 +970,14 @@ class RetroTemplate(ClassicTemplate):
             return False
         if self.has_irregular_textbox:
             return False
-        if self.is_land and self.cfg_legends_style_lands:
-            return False
-        if self.is_gold_land:
-            if self.cfg_textbox_bevels_on_gold_lands:
-                return True
-            return False
+        if self.is_land:
+            if self.cfg_legends_style_lands:
+                return False
+            if self.is_gold_land:
+                if self.cfg_textbox_bevels_on_gold_lands:
+                    return True
+                return False
+
         return True
 
     @cached_property
@@ -627,8 +1019,6 @@ class RetroTemplate(ClassicTemplate):
     def is_transparent(self) -> bool:
         if self.is_colorless and self.cfg_colorless_transparent:
             return True
-        if self.cfg_all_transparent:
-            return True
         return False
 
     @cached_property
@@ -647,6 +1037,10 @@ class RetroTemplate(ClassicTemplate):
 
     @cached_property
     def is_class(self) -> bool:
+        return False
+
+    @cached_property
+    def is_planeswalker(self) -> bool:
         return False
 
     @cached_property
@@ -675,6 +1069,17 @@ class RetroTemplate(ClassicTemplate):
         return "Small"
 
     @cached_property
+    def artref_size_from_art_aspect(self) -> str:
+        """Currently same as the function above it, but may be changed"""
+        if self.art_aspect > 1.25:
+            return "Normal"
+        if self.art_aspect > 1.06:
+            return "Medium"
+        if self.art_aspect > 0.96:
+            return "Small"
+        return "Small"
+
+    @cached_property
     def textbox_size_from_text(self) -> str:
         """Returns an appropriate textbox size for the amount of text"""
         # Set up our test text layer
@@ -692,111 +1097,284 @@ class RetroTemplate(ClassicTemplate):
         return "Normal"
 
     @cached_property
-    def auto_textbox_size(self) -> str:
-
-        def rank_textbox_size(size: str) -> int:
-            match size:
-                case "Small":
-                    return 0
-                case "Medium":
-                    return 1
-                case "Normal":
-                    return 2
-
-        match max(
-            rank_textbox_size(self.textbox_size_from_text),
-            rank_textbox_size(self.textbox_size_from_art_aspect)
-        ):
-            case 0:
-                return "Small"
-            case 1:
-                return "Medium"
-            case 2:
-                return "Normal"
-        return "Normal"  # Failsafe
-
-    @cached_property
     def textbox_size(self) -> str:
         if self.is_saga:
             return "Saga"
         if self.is_class:
             return "Class"
+        # Adventure templating is only supported on normal textbox size
+        if self.is_adventure:
+            return "Normal"
         if self.cfg_textbox_size == "Automatic":
-            return self.auto_textbox_size
+            return get_bigger_textbox_size(
+                self.textbox_size_from_text,
+                self.textbox_size_from_art_aspect)
         return self.cfg_textbox_size
 
-    ##################################################
-    # Text Layers
-    ##################################################
+    @cached_property
+    def has_different_adventure_color(self) -> bool:
+        colors = self.layout.adventure_colors
+        # Hybrid adventure cards use the land coloration, so we convert back to hybrid
+        if colors == LAYERS.LAND: colors = LAYERS.HYBRID
+
+        return colors != self.identity_advanced
 
     @cached_property
-    def text_layer_type(self) -> Optional[ArtLayer]:
-        if not self.has_textbox:
-            return None
-        return psd.getLayer(LAYERS.TYPE_LINE, self.text_group)
+    def dual_fade_order(self) -> tuple[str, str, str, str] | None:
+        """Returned values are: top mask, bottom mask, top layer identity, bottom layer identity"""
+        return fade_mappings.get(self.identity)
 
     @cached_property
-    def text_layer_name(self) -> ArtLayer:
-        return psd.getLayer(LAYERS.NAME, self.text_group)
-
-    @cached_property
-    def text_layer_nickname(self) -> ArtLayer:
-        return psd.getLayer("Nickname", self.text_group)
-
-    @cached_property
-    def text_layer_rules(self) -> ArtLayer:
-        return psd.getLayer(LAYERS.RULES_TEXT, self.text_group)
-
-    @cached_property
-    def nickname_shape(self) -> ArtLayer:
-        return psd.getLayer("Nickname Box", self.text_group)
-
-    @cached_property
-    def pt_length(self) -> int:
-        return len(f'{self.layout.power}{self.layout.toughness}')
+    def adventure_mask_type(self) -> tuple[str, str]:
+        """Returned values are: mask type, and which layer it goes on"""
+        left, right = self.layout.adventure_colors, self.identity_advanced
+        top, bottom = sort_frame_textures([left, right])
+        if left == top:
+            # Use a mask to cut out part of the top layer to be used for the adventure frame
+            return "Normal", top
+        else:
+            # Use a mask to remove the selected area, so the bottom layer shows through for the adventure frame
+            return "Inverted", top
 
     ##################################################
-    # Layer adding functions
+    # Text Functions
     ##################################################
+
+    # Up to date as of Aetherdrift rules update
+    planeswalker_genders = {
+        "Ajani": "masc",
+        "Aminatou": "fem",
+        "Angrath": "masc",
+        "Arlinn": "fem",
+        "Ashiok": "unknown",
+        "Bahamut": "masc",
+        "Basri": "masc",
+        "Bolas": "masc",
+        "Calix": "masc",
+        "Chandra": "fem",
+        "Comet": "masc",
+        "Dack": "masc",
+        "Dakkon": "masc",
+        "Daretti": "masc",
+        "Davriel": "masc",
+        "Dihada": "fem",
+        "Domri": "masc",
+        "Dovin": "masc",
+        "Ellywick": "fem",
+        "Elminster": "masc",
+        "Elspeth": "fem",
+        "Estrid": "fem",
+        "Freyalise": "fem",
+        "Garruk": "masc",
+        "Gideon": "masc",
+        "Grist": "fem",
+        "Guff": "masc",
+        "Huatli": "fem",
+        "Jace": "masc",
+        "Jared": "masc",
+        "Jaya": "fem",
+        "Jeska": "fem",
+        "Kaito": "masc",
+        "Karn": "masc",
+        "Kasmina": "fem",
+        "Kaya": "fem",
+        "Kiora": "fem",
+        "Koth": "masc",
+        "Liliana": "fem",
+        "Lolth": "fem",
+        "Lukka": "masc",
+        "Minsc": "masc",
+        "Mordenkainen": "masc",
+        "Nahiri": "fem",
+        "Narset": "fem",
+        "Niko": "nonbinary",
+        "Nissa": "fem",
+        "Nixilis": "masc",
+        "Oko": "masc",
+        "Quintorius": "masc",
+        "Ral": "masc",
+        "Rowan": "fem",
+        "Saheeli": "fem",
+        "Samut": "fem",
+        "Sarkhan": "masc",
+        "Serra": "fem",
+        "Sivitri": "fem",
+        "Sorin": "masc",
+        "Szat": "masc",
+        "Tamiyo": "fem",
+        "Tasha": "fem",
+        "Teferi": "masc",
+        "Teyo": "masc",
+        "Tezzeret": "masc",
+        "Tibalt": "masc",
+        "Tyvar": "masc",
+        "Ugin": "masc",
+        "Urza": "masc",
+        "Venser": "masc",
+        "Vivien": "fem",
+        "Vraska": "fem",
+        "Vronos": "masc",
+        "Will": "masc",
+        "Windgrace": "masc",
+        "Wrenn": "fem",
+        "Xenagos": "masc",
+        "Yanggu": "masc",
+        "Yanling": "fem",
+        "Zariel": "fem"
+    }
+
+    def planeswalker_rules_text(self) -> str:
+        rules_text = self.layout.oracle_text
+        rules_text = replace_hyphens_regex(rules_text)
+
+        if self.cfg_verbose_planeswalkers:
+
+            if self.layout.name == "The Aetherspark":
+                return rules_text
+
+            # The wanderer has no planeswalker type
+            if self.layout.name == "The Wanderer" or self.layout.name == "The Eternal Wanderer":
+                pw_name = "The Wanderer"
+                pw_gender = "fem"
+            else:
+                pw_name = self.layout.type_line.split()[3]
+                pw_gender = self.planeswalker_genders.get(pw_name)
+
+            # Gendered verb conjugations end with s while non-gendered don't
+            s = "s" if pw_gender == "masc" or pw_gender == "fem" else ""
+
+            pronoun = "they"
+            if pw_gender == "masc": pronoun = "he"
+            if pw_gender == "fem": pronoun = "she"
+
+            rules_text = (
+                f"Put {self.layout.loyalty} loyalty (use counters) on {pw_name}. "
+                f"Opponents can attack {pw_name} as though {pronoun} were you. "
+                f"Any damage {pronoun} suffer{s} depletes that much loyalty. "
+                f"If {pw_name} has no loyalty, {pronoun} abandon{s} you.\n"
+                f"Once during each of your turns, you may add or spend loyalty "
+                f"as indicated for the desired effect —\n"
+                f"{rules_text}"
+            )
+        return rules_text
+
+    def leveler_rules_text(self) -> str:
+        """Makes boomerified rules text for level up cards.
+        Revisit this function if they ever print more level up cards -
+        It has assumptions that may not hold up on new cards
+        """
+        if self.layout.leveler_match is None:
+            print("Error: failed to match leveler rules text")
+            return ""
+
+        rules_text: str = self.layout.level_up_text + "\n"
+
+        n1, n2 = self.layout.middle_level.split('-')
+        m_pt = self.layout.middle_power_toughness
+        a_an = indefinite_article_for_number(m_pt.split("/")[0])
+        m_abilities = format_leveler_abilities(self.layout.middle_text)
+
+        if m_abilities is None: rules_text += (
+            f"As long as this card has at least {n1} and at most {n2} level counters, "
+            f"it's {a_an} {m_pt}.\n")
+        else: rules_text += (
+            f"As long as this card has at least {n1} and at most {n2} level counters, "
+            f"it's {a_an} {m_pt} with {m_abilities}\n")
+
+        n3 = self.layout.bottom_level[:-1] #Removes + after number
+        b_pt = self.layout.bottom_power_toughness
+        a_an_2 = indefinite_article_for_number(b_pt.split("/")[0])
+        b_abilities = format_leveler_abilities(self.layout.bottom_text)
+
+        if b_abilities is None: rules_text += (
+            f"As long as this card has at least {n3} level counters, "
+            f"it's {a_an_2} {b_pt}.")
+        else: rules_text += (
+            f"As long as this card has at least {n3} level counters, "
+            f"it's {a_an_2} {b_pt} with {b_abilities}")
+
+        return rules_text
+
+    def prototype_rules_text(self):
+        a_an = indefinite_article_for_number(self.layout.proto_pt[0])
+        color = color_word_map.get(self.layout.proto_color)
+
+        rules_text = (
+            f"Prototype — You may cast this spell for {self.layout.proto_mana_cost}. "
+            f"If you do, it's {color} and is {a_an} {self.layout.proto_pt}. "
+            f"It keeps its abilities and types.\n"
+            f"{self.layout.oracle_text}"
+        )
+        return rules_text
+
+    def mutate_rules_text(self):
+        return self.layout.oracle_text_unprocessed
+
+
+    def add_adventure_rules_text(self):
+        left_ref, right_ref = \
+            (psd.get_reference_layer("Left Textbox Ref", self.adventure_group),
+             psd.get_reference_layer("Right Textbox Ref", self.adventure_group))
+
+        # Adventure Side
+        self.text.append(FormattedTextArea(
+            layer=psd.getLayer("Rules Text Left", self.adventure_group),
+            contents=self.layout.oracle_text_adventure,
+            flavor=self.layout.flavor_text_adventure,
+            centered=False,
+            reference=left_ref,
+            divider=None))
+
+        # Normal Side
+        self.text.append(FormattedTextArea(
+            layer=psd.getLayer("Rules Text Right", self.adventure_group),
+            contents=self.layout.oracle_text,
+            flavor=self.layout.flavor_text,
+            centered=False,
+            reference=right_ref,
+            divider=None))
 
     def rules_text_and_pt_layers(self):
         if self.is_creature:
-            self.text.append(
-                TextField(
-                    layer=self.text_layer_pt,
-                    contents=f'{self.layout.power}/{self.layout.toughness}'))
+            self.text.append(TextField(
+                layer=self.text_layer_pt,
+                contents=f'{self.layout.power}/{self.layout.toughness}'))
 
-        if "Planeswalker" in self.layout.type_line:
-            self.text.append(
-                TextField(
-                    layer=self.text_layer_pt,
-                    contents=f'{self.layout.loyalty}'))
+        elif self.is_planeswalker:
+            self.text.append(TextField(
+                layer=self.text_layer_pt,
+                contents=f'{self.layout.loyalty}'))
 
         # Make P/T a little smaller if it's two double digits to prevent touching outer card bevel
-        pt_size = 11.25
+        # default size is 11.25
         if self.pt_length >= 4:
-            pt_size = 10.0
-        set_text_size(psd.getLayer(LAYERS.POWER_TOUGHNESS, self.text_group), pt_size)
+            set_text_size(psd.getLayer(LAYERS.POWER_TOUGHNESS, self.text_group), 10.0)
 
-        if self.is_flipside_creature and self.cfg_has_notch:
-            self.text.append(
-                TextField(
-                    layer=psd.getLayer(LAYERS.POWER_TOUGHNESS, self.transform_group),
-                    contents=f'{self.layout.other_face_power}/{self.layout.other_face_toughness}'))
+        if self.is_flipside_creature and self.cfg_has_tf_notch:
+            self.text.append(TextField(
+                layer=psd.getLayer(LAYERS.POWER_TOUGHNESS, self.transform_group),
+                contents=f'{self.layout.other_face_power}/{self.layout.other_face_toughness}'))
 
         if self.textbox_size == "Textless":
             return
         if self.is_saga or self.is_class:
             return
 
-        rules_text = self.layout.oracle_text
+        if self.is_planeswalker:
+            rules_text = self.planeswalker_rules_text()
+        elif self.is_leveler:
+            rules_text = self.leveler_rules_text()
+        elif self.is_prototype:
+            rules_text = self.prototype_rules_text()
+        elif self.is_mutate:
+            rules_text = self.mutate_rules_text()
+        else:
+            rules_text = self.layout.oracle_text
 
-        if "Planeswalker" in self.layout.type_line and self.cfg_verbose_planeswalkers:
-            pw_name = self.layout.type_line.split()[3]
-            rules_text = f"Put {self.layout.loyalty} loyalty (use counters) on {pw_name}. Opponents can attack {pw_name} as though they were you. Any damage they suffer depletes that much loyalty. If {pw_name} has no loyalty, they abandon you.\n Once during each of your turns, you may add or spend loyalty as indicated for the desired effect—\n{self.layout.oracle_text}"
-
-        self.text.append(
-            FormattedTextArea(
+        if self.is_adventure:
+            self.add_adventure_rules_text()
+        else:
+            self.text.append(FormattedTextArea(
                 layer=self.text_layer_rules,
                 contents=rules_text,
                 flavor=self.layout.flavor_text,
@@ -804,55 +1382,94 @@ class RetroTemplate(ClassicTemplate):
                 reference=self.textbox_reference,
                 divider=self.divider_layer))
 
-    def basic_text_layers(self) -> None:
-        self.text.append(
+    def add_nickname_text(self):
+        self.text.extend([
+            ScaledWidthTextField(
+                layer=self.text_layer_nickname,
+                contents=self.layout.name,
+                reference=self.nickname_shape
+            ),
+            ScaledTextField(
+                layer=self.text_layer_name,
+                contents=self.flavor_name,
+                reference=self.name_reference
+            )])
+
+    def add_mdfc_text(self):
+        """Adds text at the bottom of mdfc cards indicating the name and cost
+        of the card on the other face"""
+        self.text.extend([
             FormattedTextField(
-                layer=self.text_layer_mana,
-                contents=self.layout.mana_cost
-            ))
+                layer=psd.getLayer("Right", self.mdfc_bottom_group),
+                contents=self.layout.other_face_right),
+            ScaledTextField(
+                layer=psd.getLayer("Left", self.mdfc_bottom_group),
+                contents=self.layout.other_face.get("name"),
+                reference=psd.getLayer("Right", self.mdfc_bottom_group))])
+
+        if self.has_pinlines:
+            psd.getLayer("Right", self.mdfc_bottom_group).translate(0, -6)
+            psd.getLayer("Left", self.mdfc_bottom_group).translate(0, -6)
+
+    def adjust_mana_cost(self):
+        """Adjusts the size and position of the mana cost depending
+        on if hybrid symbols are present and whether pinlines are enabled"""
+        if 'P' in self.layout.mana_cost or '/' in self.layout.mana_cost:
+            if self.has_pinlines:
+                set_text_size(self.text_layer_mana, 9.0)
+                self.text_layer_mana.translate(0, -15)
+            else:
+                self.text_layer_mana.translate(0, -12)
+        elif self.has_pinlines:
+            self.text_layer_mana.translate(0,-3)
+
+    def adventure_basic_text_layers(self) -> None:
+        self.text.append(FormattedTextField(
+            layer=psd.getLayer(LAYERS.MANA_COST, self.adventure_group),
+            contents=self.layout.mana_adventure))
+
+        self.text.append(ScaledTextField(
+            layer=psd.getLayer(LAYERS.TYPE_LINE, self.adventure_group),
+            contents=self.layout.type_line_adventure,
+            reference=psd.getLayer("Divider", self.adventure_group)))
+
+        self.text.append(ScaledTextField(
+            layer=psd.getLayer(LAYERS.NAME, self.adventure_group),
+            contents=self.layout.name_adventure,
+            reference=psd.getLayer(LAYERS.MANA_COST, self.adventure_group)))
+
+        # Make mana cost smaller if it contains hybrid mana
+        if 'P' in self.layout.mana_adventure or '/' in self.layout.mana_adventure:
+            set_text_size(psd.getLayer(LAYERS.MANA_COST, self.adventure_group), 7.0)
+
+    def basic_text_layers(self) -> None:
+        self.text.append(FormattedTextField(
+            layer=self.text_layer_mana,
+            contents=self.layout.mana_cost))
+
+        self.adjust_mana_cost()
 
         if self.has_textbox:
-            self.text.append(
-                ScaledTextField(
-                    layer=self.text_layer_type,
-                    contents=self.layout.type_line,
-                    reference=self.type_reference
-                ))
-            if self.is_mdfc:
-                # Add mdfc text layers
-                self.text.extend([
-                    FormattedTextField(
-                        layer=psd.getLayer("Right", self.mdfc_group),
-                        contents=self.layout.other_face_right),
-                    ScaledTextField(
-                        layer=psd.getLayer("Left", self.mdfc_group),
-                        contents=self.layout.other_face.get("name"),
-                        reference=psd.getLayer("Right", self.mdfc_group))])
+            if self.is_mdfc: self.add_mdfc_text()
 
-                if self.has_pinlines:
-                    psd.getLayer("Right", self.mdfc_group).translate(0, -6)
-                    psd.getLayer("Left", self.mdfc_group).translate(0, -6)
+            self.text.append(ScaledTextField(
+                layer=self.text_layer_type,
+                contents=self.layout.type_line,
+                reference=self.type_reference))
 
         if self.has_nickname:
-            self.text.extend([
-                ScaledWidthTextField(
-                    layer=self.text_layer_nickname,
-                    contents=self.layout.name,
-                    reference=self.nickname_shape
-                ),
-                ScaledTextField(
-                    layer=self.text_layer_name,
-                    contents=self.flavor_name,  # I added flavor_name to layouts.py to make this work
-                    reference=self.name_reference
-                )])
+            self.add_nickname_text()
         else:
-            self.text.append(
-                ScaledTextField(
-                    layer=self.text_layer_name,
-                    contents=self.layout.name,
-                    reference=self.name_reference
-                )
-            )
+            self.text.append(ScaledTextField(
+                layer=self.text_layer_name,
+                contents=self.layout.name,
+                reference=self.name_reference))
+
+        if self.is_adventure: self.adventure_basic_text_layers()
+
+    ##################################################
+    # Maps
+    ##################################################
 
     @cached_property
     def land_color_map(self) -> dict:
@@ -890,7 +1507,7 @@ class RetroTemplate(ClassicTemplate):
         }
 
     @cached_property
-    def pinlines_color_map(self) -> dict:
+    def pinline_colors(self) -> dict:
         if self.is_land:
             if len(self.identity) == 2:
                 return self.dual_land_color_map
@@ -898,26 +1515,53 @@ class RetroTemplate(ClassicTemplate):
         return self.nonland_color_map
 
     @cached_property
+    def textbox_bevel_thickness(self) -> Optional[str]:
+        if self.has_pinlines:
+            return "Land"
+        thickness_mappings = {
+            "W": "Small",
+            "U": "Large",
+            "B": "Small",
+            "R": "Large",
+            "G": "Medium",
+            "Gold": "Large",
+            "Hybrid": "Medium",
+            "Artifact": "Medium",
+            "Colorless": "Medium"
+        }
+        return thickness_mappings.get(self.identity_advanced)
+
+    ##################################################
+    # Layer adding functions
+    ##################################################
+
+    def load_expansion_symbol(self) -> None:
+        """Import and loads the expansion symbol, except on textless cards"""
+        if not self.has_textbox:
+            return
+        super().load_expansion_symbol()
+
+    @cached_property
     def textbox_pinlines_colors(self) -> Union[list[int], list[dict]]:
         if self.is_land:
             if (not self.is_basic_land and self.cfg_gold_textbox_lands) or (len(self.identity) > self.cfg_max_pinline_colors):
-                return psd.get_pinline_gradient("Land", color_map=self.pinlines_color_map)
+                return psd.get_pinline_gradient("Land", color_map=self.pinline_colors)
         return psd.get_pinline_gradient(
             self.identity if 1 < len(self.identity) <= self.cfg_max_pinline_colors else self.pinlines,
-            color_map=self.pinlines_color_map)
+            color_map=self.pinline_colors)
 
     @cached_property
     def non_textbox_pinlines_colors(self) -> Union[list[int], list[dict]]:
         """Must be returned as SolidColor or gradient notation."""
         if not self.cfg_color_all_pinlines:
             if self.is_land and not self.is_basic_land:
-                return psd.get_pinline_gradient("Land", color_map=self.pinlines_color_map)
+                return psd.get_pinline_gradient("Land", color_map=self.pinline_colors)
             if len(self.identity) > 1:
                 if self.is_artifact:
-                    return psd.get_pinline_gradient("Artifact", color_map=self.pinlines_color_map)
+                    return psd.get_pinline_gradient("Artifact", color_map=self.pinline_colors)
                 if self.is_colorless:
-                    return psd.get_pinline_gradient("Colorless", color_map=self.pinlines_color_map)
-                return psd.get_pinline_gradient("Gold", color_map=self.pinlines_color_map)
+                    return psd.get_pinline_gradient("Colorless", color_map=self.pinline_colors)
+                return psd.get_pinline_gradient("Gold", color_map=self.pinline_colors)
         return self.textbox_pinlines_colors
 
     def add_pinlines(self):
@@ -944,36 +1588,13 @@ class RetroTemplate(ClassicTemplate):
     def add_outer_and_art_bevels(self):
         light_mask = psd.getLayer(self.textbox_size + " Light", self.bevels_masks_layer)
         dark_mask = psd.getLayer(self.textbox_size + " Dark", self.bevels_masks_layer)
-        psd.copy_vector_mask(light_mask, self.bevels_light_layer)
-        psd.copy_vector_mask(dark_mask, self.bevels_dark_layer)
-        enable(self.identity_advanced, self.bevels_light_layer)
-        enable(self.identity_advanced, self.bevels_dark_layer)
 
-    @cached_property
-    def textbox_bevel_thickness(self) -> Optional[str]:
-        if self.has_pinlines:
-            return "Land"
-        match self.identity_advanced:
-            case "W":
-                return "Small"
-            case "U":
-                return "Large"
-            case "B":
-                return "Small"
-            case "R":
-                return "Large"
-            case "G":
-                return "Medium"
-            case "Gold":
-                return "Large"
-            case "Hybrid":
-                return "Medium"
-            case "Artifact":
-                return "Medium"
-            case "Colorless":
-                return "Medium"
-            case _:
-                return None
+        for (mask, layer) in [
+            (light_mask, self.bevels_light_layer),
+            (dark_mask, self.bevels_dark_layer)
+        ]:
+            psd.copy_vector_mask(mask, layer)
+            enable(self.identity_advanced, layer)
 
     def add_textbox_bevels(self, identity=None):
         if not self.has_textbox_bevels: return
@@ -981,17 +1602,14 @@ class RetroTemplate(ClassicTemplate):
         if identity is None:
             identity = self.identity_advanced
 
-        sized_bevel_masks = psd.getLayerSet(self.textbox_size, self.textbox_bevels_masks_layer)
-        textbox_bevel = psd.getLayerSet(identity, self.textbox_bevels_group)
-        enable(textbox_bevel)
-        (tr, bl) = (psd.getLayerSet("TR", textbox_bevel), psd.getLayerSet("BL", textbox_bevel))
-        tr_mask = psd.getLayer(self.textbox_bevel_thickness + " TR", sized_bevel_masks)
-        bl_mask = psd.getLayer(self.textbox_bevel_thickness + " BL", sized_bevel_masks)
-        psd.copy_vector_mask(tr_mask, tr)
-        psd.copy_vector_mask(bl_mask, bl)
+        tr, bl, textbox_bevel = self.copy_textbox_bevel_masks(identity)
 
         # Enables lines which exist on white, blue, and red textbox bevels
-        if (identity == "W" or identity == "U" or identity == "R"):# and not self.is_split_fade:
+        # They don't look good on hybrid cards, and I haven't implemented
+        # The right size and placements for cards with pinlines
+        if self.is_split_fade: return
+        if self.has_pinlines: return
+        if identity == "W" or identity == "U" or identity == "R":
             enable(self.textbox_size, textbox_bevel)
 
     def add_land_textbox_bevels(self):
@@ -1001,132 +1619,122 @@ class RetroTemplate(ClassicTemplate):
         if self.is_gold_land:
             bevel_color = "Gold"
 
-        sized_bevel_masks = psd.getLayerSet(self.textbox_size, self.textbox_bevels_masks_layer)
-        textbox_bevel = psd.getLayerSet("Land", self.textbox_bevels_group)
-        enable(textbox_bevel)
-        (tr, bl) = (psd.getLayerSet("TR", textbox_bevel), psd.getLayerSet("BL", textbox_bevel))
-        tr_mask = psd.getLayer(self.textbox_bevel_thickness + " TR", sized_bevel_masks)
-        bl_mask = psd.getLayer(self.textbox_bevel_thickness + " BL", sized_bevel_masks)
-        psd.copy_vector_mask(tr_mask, tr)
-        psd.copy_vector_mask(bl_mask, bl)
+        tr, bl, _ = self.copy_textbox_bevel_masks("Land")
+
         enable(bevel_color, tr)
         enable(bevel_color, bl)
 
-    @cached_property
-    def dual_fade_info(self) -> tuple[str, str, str, str]:
-        """Returned values are: top mask, bottom mask, top layer identity, bottom layer identity"""
-        match self.identity:
-            case "WU":
-                return "Left", "Right", "W", "U"
-            case "WB":
-                return "Left", "Right", "W", "B"
-            case "RW":
-                return "Right", "Left", "W", "R"
-            case "GW":
-                return "Right", "Left", "W", "G"
-            case "UB":
-                return "Left", "Right", "U", "B"
-            case "UR":
-                return "Left", "Right", "U", "R"
-            case "GU":
-                return "Right", "Left", "U", "G"
-            case "BR":
-                return "Left", "Right", "B", "R"
-            case "BG":
-                return "Left", "Right", "B", "G"
-            case "RG":
-                return "Left", "Right", "R", "G"
-            case _:
-                return "Left", "Right", "W", "W"
+    def copy_textbox_bevel_masks(self, identity) -> tuple[LayerSet, LayerSet, LayerSet]:
+        sized_bevel_masks = psd.getLayerSet(self.textbox_size, self.textbox_bevels_masks_layer)
+        textbox_bevel = psd.getLayerSet(identity, self.textbox_bevels_group)
 
-    def dual_fade(self):
-        (top_mask_name, _, top_layer, bottom_layer) = self.dual_fade_info
+        enable(textbox_bevel)
+
+        (top_right, bottom_left) = \
+            (psd.getLayerSet("TR", textbox_bevel), psd.getLayerSet("BL", textbox_bevel))
+
+        top_right_mask = psd.getLayer(self.textbox_bevel_thickness + " TR", sized_bevel_masks)
+        bottom_left_mask = psd.getLayer(self.textbox_bevel_thickness + " BL", sized_bevel_masks)
+
+        psd.copy_vector_mask(top_right_mask, top_right)
+        psd.copy_vector_mask(bottom_left_mask, bottom_left)
+
+        return top_right, bottom_left, textbox_bevel
+
+    def dual_fade_frame_texture(self):
+        (top_mask_name, _, top_layer, bottom_layer) = self.dual_fade_order
+
         top_mask = psd.getLayer(top_mask_name, LAYERS.MASKS)
-
         top_frame_layer = psd.getLayer(top_layer, self.frame_texture_layer)
         bottom_frame_layer = psd.getLayer(bottom_layer, self.frame_texture_layer)
+
         psd.copy_layer_mask(top_mask, top_frame_layer)
+
         enable(top_frame_layer)
         enable(bottom_frame_layer)
 
-        if not self.has_textbox: return
+    def dual_fade_nonland_textbox(self, colors_override = None):
+        color_source = self.dual_fade_order if colors_override is None else colors_override
+        (top_mask_name, _, top_layer, bottom_layer) = color_source
+
+        top_mask = psd.getLayer(top_mask_name, LAYERS.MASKS)
         top_textbox_layer = psd.getLayer(top_layer, self.textbox_layer)
         bottom_textbox_layer = psd.getLayer(bottom_layer, self.textbox_layer)
+
         psd.copy_layer_mask(top_mask, top_textbox_layer)
+
         enable(top_textbox_layer)
         enable(bottom_textbox_layer)
 
     def add_dual_fade_land_textbox(self):
-        if not self.has_textbox: return
+        (top_mask_name, _, top_layer, bottom_layer) = self.dual_fade_order
 
-        (top_mask_name, _, top_layer, bottom_layer) = self.dual_fade_info
         top_mask = psd.getLayer(top_mask_name, LAYERS.MASKS)
         top_textbox_layer = psd.getLayer(f"{top_layer}L Dual", self.textbox_layer)
         bottom_textbox_layer = psd.getLayer(f"{bottom_layer}L Dual", self.textbox_layer)
+
         psd.copy_layer_mask(top_mask, top_textbox_layer)
+
         enable(top_textbox_layer)
         enable(bottom_textbox_layer)
 
     def add_dual_fade_land_textbox_bevels(self):
         if not self.has_textbox_bevels: return
 
-        (top_mask_name, bottom_mask_name, top_layer, bottom_layer) = self.dual_fade_info
-        top_mask = psd.getLayer(top_mask_name, LAYERS.MASKS)
-        bottom_mask = psd.getLayer(bottom_mask_name, LAYERS.MASKS)
+        (top_mask_name, bottom_mask_name, top_layer, bottom_layer) = self.dual_fade_order
 
-        sized_bevel_masks = psd.getLayerSet(self.textbox_size, self.textbox_bevels_masks_layer)
-        textbox_bevel = psd.getLayerSet("Land", self.textbox_bevels_group)
-        enable(textbox_bevel)
-        (tr, bl) = (psd.getLayerSet("TR", textbox_bevel), psd.getLayerSet("BL", textbox_bevel))
-        tr_mask = psd.getLayer(self.textbox_bevel_thickness + " TR", sized_bevel_masks)
-        bl_mask = psd.getLayer(self.textbox_bevel_thickness + " BL", sized_bevel_masks)
-        psd.copy_vector_mask(tr_mask, tr)
-        psd.copy_vector_mask(bl_mask, bl)
+        top_mask = psd.getLayer(top_mask_name, self.mask_group)
+        bottom_mask = psd.getLayer(bottom_mask_name, self.mask_group)
 
-        enable(psd.getLayer(top_layer, tr))
-        enable(psd.getLayer(top_layer, bl))
-        enable(psd.getLayer(bottom_layer, tr))
-        enable(psd.getLayer(bottom_layer, bl))
+        top_right, bottom_left, _ = self.copy_textbox_bevel_masks("Land")
 
-        psd.copy_layer_mask(top_mask, psd.getLayer(top_layer, tr))
-        psd.copy_layer_mask(top_mask, psd.getLayer(top_layer, bl))
-        psd.copy_layer_mask(bottom_mask, psd.getLayer(bottom_layer, tr))
-        psd.copy_layer_mask(bottom_mask, psd.getLayer(bottom_layer, bl))
+        for mask_layer, layer, group in [
+            (top_mask, top_layer, top_right),
+            (top_mask, top_layer, bottom_left),
+            (bottom_mask, bottom_layer, top_right),
+            (bottom_mask, bottom_layer, bottom_left)
+        ]:
+            enable(layer, group)
+            psd.copy_layer_mask(mask_layer, psd.getLayer(layer, group))
 
     def dual_fade_textbox_bevels(self):
         if not self.has_textbox_bevels: return
 
-        (top_mask_name, bottom_mask_name, top_layer, bottom_layer) = self.dual_fade_info
+        (top_mask_name, bottom_mask_name, top_layer, bottom_layer) = self.dual_fade_order
+
         top_mask = psd.getLayer(top_mask_name, LAYERS.MASKS)
         bottom_mask = psd.getLayer(bottom_mask_name, LAYERS.MASKS)
 
-        self.add_textbox_bevels(identity=top_layer)
-        self.add_textbox_bevels(identity=bottom_layer)
-
-        psd.copy_layer_mask(top_mask, psd.getLayerSet(top_layer, self.textbox_bevels_group))
-        psd.copy_layer_mask(bottom_mask, psd.getLayerSet(bottom_layer, self.textbox_bevels_group))
+        for mask_layer, layer in [
+            (top_mask, top_layer),
+            (bottom_mask, bottom_layer),
+        ]:
+            self.add_textbox_bevels(identity=layer)
+            psd.copy_layer_mask(mask_layer, psd.getLayerSet(layer, self.textbox_bevels_group))
 
     def dual_fade_bevels(self):
-        (top_mask_name, bottom_mask_name, top_layer, bottom_layer) = self.dual_fade_info
+
+        (top_mask_name, bottom_mask_name, top_layer, bottom_layer) = self.dual_fade_order
+
         top_mask = psd.getLayer(top_mask_name, LAYERS.MASKS)
         bottom_mask = psd.getLayer(bottom_mask_name, LAYERS.MASKS)
-
         light_mask = psd.getLayer(self.textbox_size + " Light", self.bevels_masks_layer)
         dark_mask = psd.getLayer(self.textbox_size + " Dark", self.bevels_masks_layer)
+
         psd.copy_vector_mask(light_mask, self.bevels_light_layer)
         psd.copy_vector_mask(dark_mask, self.bevels_dark_layer)
 
-        enable(psd.getLayer(top_layer, self.bevels_light_layer))
-        enable(psd.getLayer(top_layer, self.bevels_dark_layer))
-        enable(psd.getLayer(bottom_layer, self.bevels_light_layer))
-        enable(psd.getLayer(bottom_layer, self.bevels_dark_layer))
-
-        psd.copy_layer_mask(top_mask, psd.getLayer(top_layer, self.bevels_light_layer))
-        psd.copy_layer_mask(top_mask, psd.getLayer(top_layer, self.bevels_dark_layer))
-        psd.copy_layer_mask(bottom_mask, psd.getLayer(bottom_layer, self.bevels_light_layer))
-        psd.copy_layer_mask(bottom_mask, psd.getLayer(bottom_layer, self.bevels_dark_layer))
+        for (mask, layer, group) in [
+            (top_mask, top_layer, self.bevels_light_layer),
+            (top_mask, top_layer, self.bevels_dark_layer),
+            (bottom_mask, bottom_layer, self.bevels_light_layer),
+            (bottom_mask, bottom_layer, self.bevels_dark_layer),
+        ]:
+            enable(layer, group)
+            psd.copy_layer_mask(mask, psd.getLayer(layer, group))
 
     def position_type_line(self):
+        """Positions the type line elements vertically based on the textbox size"""
         if not self.has_textbox: return
 
         match self.textbox_size:
@@ -1155,45 +1763,14 @@ class RetroTemplate(ClassicTemplate):
         if self.is_type_shifted:
             self.text_layer_type.translate(100, 0)
 
-    def add_tf_elements(self):
-        """Adds elements for transform and mdfc cards (also tombstone)"""
-        if self.is_transform:
-            # Enables the front or back icon depending on the card face
-            # Enables smaller, shifted transform icon to coexist with tombstone icon
-            face = LAYERS.FRONT if self.is_front else LAYERS.BACK
-            if self.has_tombstone and self.is_front:
-                face = "Front Small"
+    def add_tombstone(self):
+        # Enables smaller tombstone icon which sits below the transform icon
+        if self.is_transform and self.is_front:
+            icon_name = "Tombstone Small"
+        else:
+            icon_name = "Tombstone"
 
-            enable(face, self.transform_group)
-
-            if self.is_front:
-                if self.has_textbox and self.cfg_has_notch:
-                    self.add_textbox_notch()
-
-                    if self.is_flipside_creature:
-                        enable(LAYERS.POWER_TOUGHNESS, self.transform_group)
-            else:
-                # Transforms backside icon to right side
-                # TODO This should respond to a setting to have the icon on the left
-                self.transform_group.translate(1675, 0)
-
-        if self.is_mdfc:
-            enable(self.mdfc_group)
-
-            if self.is_front:
-                enable("Front", self.mdfc_group)
-            else:
-                enable("Back", self.mdfc_group)
-            if self.has_textbox and self.cfg_has_notch:
-                self.add_textbox_notch()
-            return
-
-        if self.has_tombstone:
-            if self.is_transform and self.is_front:
-                # Enables smaller, shifted tombstone icon to coexist with transform icon
-                enable("Tombstone Small", self.text_group)
-            else:
-                enable("Tombstone", self.text_group)
+        enable(icon_name, self.text_group)
 
     def add_textbox_notch(self):
         cardtype = ""
@@ -1221,7 +1798,7 @@ class RetroTemplate(ClassicTemplate):
                 if len(color) > 2: color = "Gold"
 
                 if self.is_dual_land:
-                    (top, _, top_color, bottom_color) = self.dual_fade_info
+                    (top, _, top_color, bottom_color) = self.dual_fade_order
                     notch_side = "Left" if cardtype == "MDFC" else "Right"
                     color = top_color if notch_side == top else bottom_color
 
@@ -1244,7 +1821,7 @@ class RetroTemplate(ClassicTemplate):
         enable(self.frame_texture)
         self.add_outer_and_art_bevels()
 
-    def add_land_textbox_texture(self):
+    def add_land_textbox(self):
         if self.is_dual_land:
             self.add_dual_fade_land_textbox()
             self.add_dual_fade_land_textbox_bevels()
@@ -1254,18 +1831,24 @@ class RetroTemplate(ClassicTemplate):
 
     def add_nonland_frame_texture(self):
         if self.is_split_fade:
-            self.dual_fade()
+            self.dual_fade_frame_texture()
             self.dual_fade_bevels()
         else:
             enable(self.frame_texture)
             self.add_outer_and_art_bevels()
 
-    def add_nonland_textbox_texture(self):
+    def add_nonland_textbox(self):
         if self.is_split_fade:
+            self.dual_fade_nonland_textbox()
             if self.cfg_dual_textbox_bevels:
                 self.dual_fade_textbox_bevels()
             else:
                 self.add_textbox_bevels()
+
+        elif self.is_adventure and self.has_different_adventure_color:
+            ... #TODO make new logic using self.adventure_mask_type
+            #self.dual_fade_nonland_textbox(colors_override=self.dual_fade_order_adventure)
+            #self.add_textbox_bevels()
         else:
             enable(self.textbox_texture)
             self.add_textbox_bevels()
@@ -1290,10 +1873,14 @@ class RetroTemplate(ClassicTemplate):
         if self.cfg_colored_bevels_on_devoid:
             enable(color, self.bevels_light_layer)
             enable(color, self.bevels_dark_layer)
-            psd.copy_layer_mask(psd.getLayer("Devoid Color", self.mask_group),
-                                psd.getLayer(color, self.bevels_light_layer))
-            psd.copy_layer_mask(psd.getLayer("Devoid Color", self.mask_group),
-                                psd.getLayer(color, self.bevels_dark_layer))
+
+            psd.copy_layer_mask(
+                psd.getLayer("Devoid Color", self.mask_group),
+                psd.getLayer(color, self.bevels_light_layer))
+
+            psd.copy_layer_mask(
+                psd.getLayer("Devoid Color", self.mask_group),
+                psd.getLayer(color, self.bevels_dark_layer))
 
     def add_outlines(self):
         enable(self.art_outlines)
@@ -1312,6 +1899,7 @@ class RetroTemplate(ClassicTemplate):
         psd.copy_vector_mask(nickname_mask, self.bevels_layer)
 
     def add_textbox_decorations(self):
+        """Adds the color indicator and fx to textboxes when appropriate"""
         if self.is_type_shifted and self.color_indicator_layer:
             enable(self.color_indicator_layer)
 
@@ -1320,48 +1908,133 @@ class RetroTemplate(ClassicTemplate):
             psd.copy_layer_fx(psd.getLayer("G", self.textbox_effects_layer), self.textbox_layer)
 
     def add_textbox(self):
-        if self.is_land: self.add_land_textbox_texture()
-        if not self.is_land: self.add_nonland_textbox_texture()
+        if self.is_land: self.add_land_textbox()
+        if not self.is_land: self.add_nonland_textbox()
         self.apply_textbox_shape()
         self.add_textbox_decorations()
 
     def enable_frame_layers(self):
+        enable(self.frame_mask)
+        self.add_outlines()
+
         if self.is_land: self.add_land_frame_texture()
         if not self.is_land: self.add_nonland_frame_texture()
-        enable(self.frame_mask)
-
-        if self.is_devoid: self.apply_devoid()
-
-        if (not self.is_devoid) and self.is_transparent:
-            self.card_frame_group.opacity = self.cfg_transparent_opacity
 
         if self.cfg_floating_frame: disable(self.border_group)
-
-        if self.has_textbox: self.add_textbox()
-        # Hide expansion symbol (better to not add it in the first place, but I don't know how)
-        if not self.has_textbox:
-            disable(self.expansion_symbol_layer)
-
-        self.add_outlines()
+        if self.is_devoid: self.apply_devoid()
+        if self.has_textbox:
+            self.add_textbox()
+            self.position_type_line()
+        # if not self.has_textbox: disable(self.expansion_symbol_layer)
         if self.has_pinlines: self.add_pinlines()
-        self.position_type_line()
-
         if self.has_nickname: self.add_nickname_plate()
-
-        if self.is_promo_star:
-            enable("Promo Star", self.text_group)
-
-        self.add_tf_elements()
-
-    def hook_large_mana(self) -> None:
-        """Adjust mana cost position for large symbols."""
-        self.text_layer_mana.translate(0, -12)
+        if self.is_promo_star: enable("Promo Star", self.text_group)
+        if self.has_tombstone: self.add_tombstone()
+        if self.is_adventure: enable(self.adventure_group)
 
 ##################################################
 # Child classes
 ##################################################
 
-class RetroSagaTemplate(RetroTemplate, SagaMod):
+class RetroAdventureTemplate(RetroTemplate):
+    ...
+class RetroPrototypeTemplate(RetroTemplate):
+    ...
+class RetroMutateTemplate(RetroTemplate):
+    ...
+class RetroLevelerTemplate(RetroTemplate):
+    ...
+
+class RetroPWTemplate(RetroTemplate):
+    """Template for Planeswalkers"""
+
+    @cached_property
+    def is_planeswalker(self) -> bool:
+        return True
+
+class RetroTFTemplate(RetroTemplate):
+    """Template for TransForming cards"""
+
+    def load_expansion_symbol(self) -> None:
+        """Import and loads the expansion symbol, except on textless cards"""
+        if not self.has_textbox:
+            return
+        if self.is_transform and not self.is_front and not self.cfg_set_symbol_on_back:
+            return
+        super().load_expansion_symbol()
+
+    def has_tf_notch(self) -> bool:
+        if self.has_textbox and self.is_front and self.cfg_has_tf_notch:
+            return True
+        return False
+
+    def add_transform_icon(self):
+        """Adds transform icons to the top left and right of cards"""
+        if self.is_front:
+            if self.has_tombstone: # Cards with tombstones use a smaller transform icon which is placed above it
+                icon_name = "Front Small"
+            else:
+                icon_name = "Front"
+        else:
+            icon_name = "Back"
+            if self.cfg_tf_icon_on_right_side:
+                self.transform_group.translate(1675, 0)
+
+        enable(icon_name, self.transform_group)
+
+    def enable_frame_layers(self):
+        super().enable_frame_layers()
+
+        # Sagas inherit from TFTemplate since they can be transforming cards
+        # but not all of them are, so we have the following guard
+        if not self.is_transform: return
+
+        self.add_transform_icon()
+        if self.has_tf_notch():
+            self.add_textbox_notch()
+            if self.is_flipside_creature:
+                enable(LAYERS.POWER_TOUGHNESS, self.transform_group)
+
+class RetroMDFCTemplate(RetroTemplate):
+    """Template for Modal Double Faced cards"""
+
+    def has_mdfc_notch(self) -> bool:
+        """MDFCs have placards in the bottom left on both faces which show the cost and types
+        of the other face. I use a notch on the bottom left of the text box and a dividing line
+        to accomplish this. Since I have more space to work with, I decided to put the card name
+        instead of the type, since it fills the space better and looks better, in my opinion
+        """
+        if self.has_textbox and self.cfg_has_mdfc_notch:
+            return True
+        return False
+
+    def add_mdfc_icon(self):
+        """Adds modal double faced icons to the top left of cards"""
+        enable(self.mdfc_group)
+        if self.is_front:
+            enable("Front", self.mdfc_group)
+        else:
+            enable("Back", self.mdfc_group)
+
+    def adjust_mdfc_text_position(self):
+        """Move the mdfc backside card info text up a bit on cards with larger textbox bevels"""
+        if self.textbox_bevel_thickness == "Land" or self.textbox_bevel_thickness == "Large":
+            self.mdfc_bottom_group.translate(0, -5)
+
+    def enable_frame_layers(self):
+        super().enable_frame_layers()
+        self.add_mdfc_icon()
+        self.adjust_mdfc_text_position()
+        if self.has_mdfc_notch():
+            self.add_textbox_notch()
+
+class RetroPWTFTemplate(RetroTFTemplate):
+    """Transforming Planeswalkers"""
+
+class RetroPWMDFCTemplate(RetroMDFCTemplate):
+    """Modal Double Faced Planeswalkers"""
+
+class RetroSagaTemplate(RetroTFTemplate, SagaMod):
 
     @cached_property
     def is_saga(self) -> bool:
@@ -1379,6 +2052,7 @@ class RetroSagaTemplate(RetroTemplate, SagaMod):
     def textbox_reference(self) -> ReferenceLayer:
         return psd.get_reference_layer(LAYERS.TEXTBOX_REFERENCE, self.saga_group)
 
+    # noinspection DuplicatedCode
     def text_layers_saga(self):
         # The full read ahead reminder text is too large to comfortably fit in the textbox
         # So it gets swapped out for an abridged version that explains Read Ahead but not how Sagas work
@@ -1433,17 +2107,3 @@ class RetroClassTemplate(RetroTemplate, ClassMod):
     def frame_layers_classes(self) -> None:
         enable(self.class_group)
 
-class RetroPWTemplate(RetroTemplate):
-    """Exists to have a different picture and settings"""
-
-class RetroPWMDFCTemplate(RetroTemplate):
-    """Exists to have a different picture and settings"""
-
-class RetroPWTFTemplate(RetroTemplate):
-    """Exists to have a different picture and settings"""
-
-class RetroMDFCTemplate(RetroTemplate):
-    """Exists to have a different picture and settings"""
-
-class RetroTFTemplate(RetroTemplate):
-    """Exists to have a different picture and settings"""
