@@ -88,6 +88,19 @@ def add_and_to_list(text: str) -> str:
     else:
         return re.sub(r',\s*([^,]*)$', r', and \1', text)
 
+
+def list_to_text(items: list[str]) -> str:
+    if not items:
+        return ""
+
+    if len(items) == 1:
+        return items[0]
+
+    if len(items) == 2:
+        return f"{items[0]} and {items[1]}"
+
+    return ", ".join(items[:-1]) + ", and " + items[-1]
+
 def format_leveler_abilities(abilities) -> str | None:
     if abilities == "" or abilities is None:
         return None

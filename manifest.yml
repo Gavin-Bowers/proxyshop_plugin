@@ -21,10 +21,16 @@ retro.psd:
     Retro:
       RetroTemplate:
         - normal
+      RetroLevelerTemplate:
         - leveler
+      RetroPrototypeTemplate:
         - prototype
+      RetroAdventureTemplate:
         - adventure
+      RetroMutateTemplate:
         - mutate
+      RetroBattleTemplate:
+        - battle
       RetroPWTemplate:
         - planeswalker
       RetroSagaTemplate:

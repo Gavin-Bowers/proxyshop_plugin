@@ -1,0 +1,177 @@
+[GENERAL]
+title = "General Settings"
+
+[GENERAL."tombstone"]
+title = "Tombstone Mode"
+desc = """Automatic checks the keywords and rules text to determine if a card should have a tombstone. It may error. Please report it if it does.
+Scryfall checks the Scryfall data. It's never wrong, but will only add a tombstone if the specified printing has one."""
+type = "options"
+default = "Automatic"
+options = ["Automatic", "Scryfall", "None"]
+
+[GENERAL."textbox_size"]
+title = "Textbox Size Mode"
+desc = """Controls size of textbox and art.
+Medium is about 70% of normal size and Small is about 55%
+Textless still has Power/Toughness, Name, and Mana cost, but all other text (and the set symbol) are removed
+Automatic uses the aspect ratio of the art and the amount of text to decide the size.
+For smaller textbox sizes, you should probably disable flavor and reminder text"""
+type = "options"
+default = "Automatic"
+options = ["Automatic", "Normal", "Medium", "Small", "Textless"]
+
+[GENERAL."use_floating_frame"]
+title = "Floating Frame"
+desc = """Makes the card borderless, so the frame floats on top of the art. Requires very large art to work properly"""
+type = "bool"
+default = 0
+
+[GENERAL."use_irregular_textboxes"]
+title = "Irregular Textboxes"
+desc = """Use nonstandard textboxes for Green and Black cards"""
+type = "bool"
+default = 1
+
+[GENERAL."colorless_transparent"]
+title = "Transparent Colorless cards"
+desc = """Makes cardframes transparent on Eldrazi and other non-artifact colorless cards. Requires full height art"""
+type = "bool"
+default = 1
+
+[GENERAL."use_colored_bevels_on_devoid"]
+title = "Colored Bevels on Devoid Cards"
+desc = """Makes the shading from the colored cardframe apply to the top of devoid cards.
+With this disabled, the color still applies, but it uses the subtle shading on colorless cards so it has a more ephemeral look"""
+type = "bool"
+default = 1
+
+[GENERAL."all_transparent"]
+title = "Transparent Cards"
+desc = """Makes all cardframes transparent"""
+type = "bool"
+default = 0
+
+[GENERAL."transparent_opacity"]
+title = "Transparent Opacity"
+desc = """Opacity setting for transparent cards"""
+type = "options"
+default = "45.0"
+options = ["65.0", "55.0", "45.0", "30.0", "20.0", "10.0", "0.0"]
+
+[GENERAL."split_hybrid"]
+title = "Dual Fade Hybrid Cards"
+desc = """Makes hybrid cards fade between the colors"""
+type = "bool"
+default = 1
+
+[GENERAL."split_all"]
+title = "Dual Fade Two Color Cards"
+desc = """Makes all two color cards fade between the colors"""
+type = "bool"
+default = 0
+
+[GENERAL."standardize_dual_fade_bevels"]
+title = "Standadize Dual Fade Bevels"
+desc = """Makes bevels on dual fade cards use a standard style.
+When disabled, bevels will use normal colors and textures,
+but still have standardized size so they line up."""
+type = "bool"
+default = 1
+
+[GENERAL."disable_textbox_bevels"]
+title = "Disable Textbox Bevels"
+desc = """Turns off all textbox bevels"""
+type = "bool"
+default = 0
+
+
+
+[PINLINES]
+title = "Pinlines Settings"
+
+[PINLINES."multicolored"]
+title = "Pinlines on Multicolored"
+desc = """Adds multicolored/gold pinlines to all multicolored cards"""
+type = "bool"
+default = 0
+
+[PINLINES."artifacts"]
+title = "Pinlines on Artifacts"
+desc = """Adds colored pinlines to colored artifacts and brown pinlines to colorless ones"""
+type = "bool"
+default = 0
+
+[PINLINES."all"]
+title = "Pinlines on All Cards"
+desc = """Enables pinlines on all nonland cards. Monocolored cards have pinline colors inherited from basic lands"""
+type = "bool"
+default = 0
+
+[PINLINES."color_all"]
+title = "Color All Pinlines"
+desc = """Applies card color to outer and art pinlines on multicolored, artifact, and land cards"""
+type = "bool"
+default = 0
+
+[PINLINES."max_colors"]
+title = "Max Colors"
+desc = """Pinlines will be gold if the number of colors is greater than this setting"""
+type = "options"
+default = "2"
+options = ["2", "3", "4"]
+
+
+
+[LANDS]
+title = "Lands"
+
+[LANDS."legends_style_lands"]
+title = "Legends Style Lands"
+desc = """Gives lands a lighter color-grading, golden textbox color, and shiny golden pinlines like the lands from Legends"""
+type = "bool"
+default = 0
+
+[LANDS."gold_textbox_lands"]
+title = "Gold Textbox on Lands"
+desc = """Makes the textbox on all nonbasic lands gold, like in fifth edition"""
+type = "bool"
+default = 0
+
+[LANDS."textbox_bevels_on_gold_lands"]
+title = "Textbox Bevels on Gold Lands"
+desc = """Makes gold lands have textbox bevels. Real cards don't have them, which I think is strange"""
+type = "bool"
+default = 1
+
+[LANDS."gold_textbox_pinline_lands"]
+title = "Gold Texbox Pinlines on Lands"
+desc = """Makes the textbox pinlines on all nonbasic lands gold, like in fifth edition"""
+type = "bool"
+default = 0
+
+
+
+[TF]
+title = "Transforming Double Faced Cards"
+
+[TF."notch"]
+title = "Transform Notch"
+desc = """Adds a notch to the bottom right of transforming cards.
+The notch contains the power and toughness of the creature on the backside.
+Enabling this setting disables irregular textboxes."""
+type = "bool"
+default = 0
+
+[TF."icon_side"]
+title = "Transform Icon On Right Side On Back Face"
+desc = """Places the transform icon in the top right corner of the back face, like modern transform cards.
+If disabled, the icon is in the top left corner, same as the front side icon"""
+type = "bool"
+default = 1
+
+[TF."set_symbol_on_back"]
+title = "Set Symbol on Back Face"
+desc = """Makes the set symbol shop up on the front and back face, like older transform cards.
+Newer cards just have it on the front face"""
+type = "bool"
+default = 0

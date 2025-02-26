@@ -42,10 +42,8 @@ from cardinfo import *
 # Battles
 # Split Cards, rooms, aftermath and meld
 # Flip Cards
-# Adventure, Prototype, Mutate, Level Up
 
 # planeswalker dashes are thinner than I'd like, but hyphens are too short
-# not sure how to fix that
 
 # historically accurate set symbols?
 # boomerification of rules text?
@@ -410,6 +408,10 @@ class RetroTemplate(NormalTemplate):
         return self.layout.card_class == LayoutType.Mutate
 
     @cached_property
+    def is_battle(self):
+        return self.layout.card_class == LayoutType.Battle
+
+    @cached_property
     def template_suffix(self) -> str:
         """Add Promo if promo star enabled."""
         return 'Promo' if self.is_promo_star else ''
@@ -431,6 +433,8 @@ class RetroTemplate(NormalTemplate):
     def has_irregular_textbox(self) -> bool:
         if self.is_saga or self.is_class:
             return False
+        # if self.is_adventure:
+        #     return False
         if (self.is_transform or self.is_mdfc) and self.cfg_has_tf_notch:
             return False
         if not self.cfg_irregular_textboxes:
@@ -483,6 +487,8 @@ class RetroTemplate(NormalTemplate):
             return False
         if self.has_irregular_textbox:
             return False
+        # if self.is_adventure:
+        #     return False
         if self.is_land:
             if self.cfg_legends_style_lands:
                 return False
@@ -616,8 +622,8 @@ class RetroTemplate(NormalTemplate):
         if self.is_class:
             return "Class"
         # Adventure templating is only supported on normal textbox size
-        if self.is_adventure:
-            return "Normal"
+        # if self.is_adventure:
+        #     return "Normal"
         if self.cfg_textbox_size == "Automatic":
             return get_bigger_textbox_size(
                 self.textbox_size_from_text,
@@ -672,6 +678,15 @@ class RetroTemplate(NormalTemplate):
             "Colorless": "Medium"
         }
         return thickness_mappings.get(self.identity_advanced)
+
+    @cached_property
+    def is_centered(self) -> bool:
+        """bool: Governs whether rules text is centered."""
+        if self.is_adventure: return False
+        return bool(
+            len(self.layout.flavor_text) <= 1
+            and len(self.layout.oracle_text) <= 70
+            and "\n" not in self.layout.oracle_text)
 
     #endregion
 
@@ -860,8 +875,8 @@ class RetroTemplate(NormalTemplate):
             textbox_name = f"{self.identity_advanced} {self.textbox_size}"
         # if self.is_transform and self.is_front:
         #     textbox_name = textbox_name + " TF Front"
-        if self.is_adventure:
-            textbox_name = "Adventure"
+        # if self.is_adventure:
+        #     textbox_name = "Adventure"
         return psd.getLayer(textbox_name, self.textbox_masks_group)
 
     @cached_property
@@ -995,6 +1010,34 @@ class RetroTemplate(NormalTemplate):
     def mutate_rules_text(self):
         return self.layout.oracle_text_unprocessed
 
+    def adventure_rules_text(self):
+        adventure_type = self.layout.type_line_adventure.split(" ")[0].lower()
+        a_an = "a" if adventure_type == "sorcery" else "an"
+
+        supertypes_and_types, subtypes = self.layout.type_line.split("—")
+        card_type = supertypes_and_types.split(" ")[-2].lower()
+        a_an_2 = "a" if card_type == "creature" else "an"
+
+        adventure_text_no_reminder = re.sub(r'\s\([^)]*\)', '',
+                                            self.layout.oracle_text_adventure)
+        maybe_colors = a_an
+
+        if self.has_different_adventure_color:
+            colors = self.layout.color_identity_adventure
+            color_words = [color_word_map.get(color) for color in colors]
+            color_list = list_to_text(color_words)
+            maybe_colors = f"a {color_list}"
+
+        return (
+            f"{self.layout.name} can go on an adventure. "
+            f"You may cast this card as {maybe_colors} {adventure_type} "
+            f"named {self.layout.name_adventure} for {self.layout.mana_adventure}. "
+            f"It has \"{adventure_text_no_reminder} "
+            f"Then exile this card. You may cast it as {a_an_2} {card_type} "
+            f"for as long as it remains exiled.\"\n"
+            f"{self.layout.oracle_text}"
+        )
+
     def add_adventure_rules_text(self):
         left_ref, right_ref = \
             (psd.get_reference_layer("Left Textbox Ref", self.adventure_group),
@@ -1029,6 +1072,11 @@ class RetroTemplate(NormalTemplate):
                 layer=self.text_layer_pt,
                 contents=f'{self.layout.loyalty}'))
 
+        elif self.is_battle:
+            self.text.append(TextField(
+                layer=self.text_layer_pt,
+                contents=f'{self.layout.defense}'))
+
         # Make P/T a little smaller if it's two double digits to prevent touching outer card bevel
         # default size is 11.25
         if self.pt_length >= 4:
@@ -1052,19 +1100,21 @@ class RetroTemplate(NormalTemplate):
             rules_text = self.prototype_rules_text()
         elif self.is_mutate:
             rules_text = self.mutate_rules_text()
+        elif self.is_adventure:
+            rules_text = self.adventure_rules_text()
         else:
             rules_text = self.layout.oracle_text
 
-        if self.is_adventure:
-            self.add_adventure_rules_text()
-        else:
-            self.text.append(FormattedTextArea(
-                layer=self.text_layer_rules,
-                contents=rules_text,
-                flavor=self.layout.flavor_text,
-                centered=self.is_centered,
-                reference=self.textbox_reference,
-                divider=self.divider_layer))
+        # if self.is_adventure:
+        #     self.add_adventure_rules_text()
+        # else:
+        self.text.append(FormattedTextArea(
+            layer=self.text_layer_rules,
+            contents=rules_text,
+            flavor=self.layout.flavor_text,
+            centered=self.is_centered,
+            reference=self.textbox_reference,
+            divider=self.divider_layer))
 
     def add_nickname_text(self):
         self.text.extend([
@@ -1149,7 +1199,7 @@ class RetroTemplate(NormalTemplate):
                 contents=self.layout.name,
                 reference=self.name_reference))
 
-        if self.is_adventure: self.adventure_basic_text_layers()
+        #if self.is_adventure: self.adventure_basic_text_layers()
     # endregion
 
     # region    Layer adding functions
@@ -1451,15 +1501,16 @@ class RetroTemplate(NormalTemplate):
         if self.is_split_fade:
             self.dual_fade_frame_texture()
             self.dual_fade_bevels()
-        elif self.is_adventure and self.has_different_adventure_color:
-            mask, layer, _, _ = self.adventure_mask_info
-
-            psd.copy_vector_mask(
-                psd.getLayer(f"Adventure Frame{mask}", self.mask_group),
-                psd.getLayer(layer, self.frame_texture_group))
-
-            enable(self.layout.adventure_colors, self.frame_texture_group)
-            enable(self.identity_advanced, self.frame_texture_group)
+        # elif self.is_adventure and self.has_different_adventure_color:
+        #     mask, layer, _, _ = self.adventure_mask_info
+        #
+        #     psd.copy_vector_mask(
+        #         psd.getLayer(f"Adventure Frame{mask}", self.mask_group),
+        #         psd.getLayer(layer, self.frame_texture_group))
+        #
+        #     enable(self.layout.adventure_colors, self.frame_texture_group)
+        #     enable(self.identity_advanced, self.frame_texture_group)
+        #     self.add_outer_and_art_bevels()
         else:
             enable(self.frame_texture)
             self.add_outer_and_art_bevels()
@@ -1472,17 +1523,17 @@ class RetroTemplate(NormalTemplate):
             else:
                 self.add_textbox_bevels()
 
-        elif self.is_adventure and self.has_different_adventure_color:
-
-            mask, top_layer, _, _ = self.adventure_mask_info
-
-            psd.copy_vector_mask(
-                psd.getLayer(f"Adventure Textbox{mask}", self.mask_group),
-                psd.getLayer(top_layer, self.textbox_group))
-
-            enable(self.layout.adventure_colors, self.textbox_group)
-            enable(self.identity_advanced, self.textbox_group)
-
+        # elif self.is_adventure and self.has_different_adventure_color:
+        #
+        #     mask, top_layer, _, _ = self.adventure_mask_info
+        #
+        #     psd.copy_vector_mask(
+        #         psd.getLayer(f"Adventure Textbox{mask}", self.mask_group),
+        #         psd.getLayer(top_layer, self.textbox_group))
+        #
+        #     enable(self.layout.adventure_colors, self.textbox_group)
+        #     enable(self.identity_advanced, self.textbox_group)
+        #
             #self.dual_fade_nonland_textbox(colors_override=self.dual_fade_order_adventure)
             #self.add_textbox_bevels()
         else:
@@ -1566,7 +1617,7 @@ class RetroTemplate(NormalTemplate):
         if self.has_nickname: self.add_nickname_plate()
         if self.is_promo_star: enable("Promo Star", self.text_group)
         if self.has_tombstone: self.add_tombstone()
-        if self.is_adventure: enable(self.adventure_group)
+        #if self.is_adventure: enable(self.adventure_group)
     # endregion
 
 class RetroAdventureTemplate(RetroTemplate):
@@ -1660,6 +1711,13 @@ class RetroMDFCTemplate(RetroTemplate):
         self.adjust_mdfc_text_position()
         if self.has_mdfc_notch():
             self.add_textbox_notch()
+
+class RetroBattleTemplate(RetroTFTemplate):
+    ...
+    # Battles are always transform
+    # @property
+    # def is_transform(self) -> bool:
+    #     return True
 
 class RetroPWTFTemplate(RetroTFTemplate):
     """Transforming Planeswalkers"""
