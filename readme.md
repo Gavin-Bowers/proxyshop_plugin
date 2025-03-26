@@ -4,8 +4,10 @@ Specifically, the latest version of the main branch
 
 You need the photoshop templates from [this folder](https://drive.google.com/drive/folders/18UIUWx5MqmtJcN3f7KlNAuihnD2ScRYu?usp=drive_link)
 
-# Showcase
-
+<details>
+  <summary>
+    <h1>Showcase</h1>
+  </summary>
 <table>
   <tr>
       <th scope="row" colspan="5">Colors</th>
@@ -92,12 +94,13 @@ You need the photoshop templates from [this folder](https://drive.google.com/dri
     <td valign="top"><img align=top src= https://github.com/user-attachments/assets/9c1aba93-790e-48c4-b866-c3bcb30096b8></td>
   </tr>
 </table>
+</details>
 
 # Changelog
 
 Updated for Proxyshop 1.14
 
-1.14 refers to the code on the main branch, it hasn't been packaged for release yet
+1.14 refers to the code on the main branch. It hasn't been packaged for release yet
 
 Settings now work!
 
@@ -119,7 +122,3 @@ The settings are configured to be as accurate to real cards as possible by defau
 * Land Sagas don't render properly (Urza's saga)
 
 I don't intend to fix these issues since each would be a lot of work for a single card
-
-# Feedback
-
-If you have any issues or want any features to be added, let me know. My Discord handle is `gavin15` and my username is `[Gavin]`. I am open to contributions and collaboration.
