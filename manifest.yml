@@ -15,7 +15,7 @@ PLUGIN:
 ###
 retro.psd:
   name: 'Retro'
-  id: ''
+  id: '19QR-p036jvaP6tvXdkfPdyrnkGvK6Nco'
   desc: 'Cards in the style of 7th edition, with modern color grading.'
   templates:
     Retro:
