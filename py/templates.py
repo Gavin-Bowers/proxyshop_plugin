@@ -74,6 +74,7 @@ class RetroTemplate(NormalTemplate):
         return CFG.get_setting(
             section="GENERAL",
             key="textbox_size",
+            default="Automatic",
             is_bool=False)
 
     @property
