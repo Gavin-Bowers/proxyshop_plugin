@@ -625,9 +625,13 @@ class RetroTemplate(NormalTemplate):
         # if self.is_adventure:
         #     return "Normal"
         if self.cfg_textbox_size == "Automatic":
+            print("Using automatic textbox size")
             return get_bigger_textbox_size(
                 self.textbox_size_from_text,
                 self.textbox_size_from_art_aspect)
+        if (self.cfg_textbox_size is None):
+            print("Config textbox size is none")
+            return "Normal"
         return self.cfg_textbox_size
 
     @cached_property
@@ -1011,26 +1015,56 @@ class RetroTemplate(NormalTemplate):
         return self.layout.oracle_text_unprocessed
 
     def adventure_rules_text(self):
+        """
+        Handles adventure, omen, and prepared, which are all treated as adventure template by Proxyshop
+        """
         adventure_type = self.layout.type_line_adventure.split(" ")[0].lower()
-        a_an = "a" if adventure_type == "sorcery" else "an"
+        # a_an = "a" if adventure_type == "sorcery" else "an"
 
-        supertypes_and_types, subtypes = self.layout.type_line.split("—")
+        supertypes_and_types, _subtypes = self.layout.type_line.split("—")
         card_type = supertypes_and_types.split(" ")[-2].lower()
         a_an_2 = "a" if card_type == "creature" else "an"
 
         adventure_text_no_reminder = re.sub(r'\s\([^)]*\)', '',
                                             self.layout.oracle_text_adventure)
-        maybe_colors = a_an
+        # maybe_colors = a_an
 
-        if self.has_different_adventure_color:
-            colors = self.layout.color_identity_adventure
-            color_words = [color_word_map.get(color) for color in colors]
-            color_list = list_to_text(color_words)
-            maybe_colors = f"a {color_list}"
+        # if self.has_different_adventure_color:
+        colors = self.layout.color_identity_adventure
+        color_words = [color_word_map.get(color) for color in colors]
+        color_list = list_to_text(color_words)
+        maybe_colors = f"a {color_list}"
+
+        if "prepared" in self.layout.oracle_text:
+            return (
+                f"When this {card_type} becomes prepared, create a copy of its spell in exile. "
+                f"While it's prepared, you may cast that spell. Doing so unprepares it. "
+                f"This card's spell is {self.layout.name_adventure}. "
+                f"It's {maybe_colors} {adventure_type} for {self.layout.mana_adventure} "
+                f"with \"{adventure_text_no_reminder}\"\n"
+                f"{self.layout.oracle_text}"
+            )
+
+        if "Omen" in self.layout.type_line_adventure:
+            return (
+                f"{self.layout.name} can be heralded by an omen. "
+                f"You may cast this card as {maybe_colors} Omen {adventure_type} "
+                f"named {self.layout.name_adventure} for {self.layout.mana_adventure}. "
+                f"It has \"{adventure_text_no_reminder} "
+                f"Then shuffle this card into its owner's library.\"\n"
+                f"{self.layout.oracle_text}"
+            )
+
+        # This templating is functionally similar to the rules for adventure cards,
+        # However, there are things spelled out as rules text that are handled by game rules in reality
+        # This distinction doensn't matter unless something modifies the card text or game rules in certain ways
+        # Which nothing does, as far as I'm aware
+        # The templating only fails on one card, Twice Upon a Time
+        # Since it has the same card type (sorcery) for the adventure and non-adventure sides
 
         return (
             f"{self.layout.name} can go on an adventure. "
-            f"You may cast this card as {maybe_colors} {adventure_type} "
+            f"You may cast this card as {maybe_colors} Adventure {adventure_type} "
             f"named {self.layout.name_adventure} for {self.layout.mana_adventure}. "
             f"It has \"{adventure_text_no_reminder} "
             f"Then exile this card. You may cast it as {a_an_2} {card_type} "
