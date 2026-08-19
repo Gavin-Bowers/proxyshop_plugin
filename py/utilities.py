@@ -119,10 +119,18 @@ def format_leveler_abilities(abilities) -> str | None:
 def get_bigger_textbox_size(size1, size2) -> str:
     sizes = ["Small", "Medium", "Normal"]
     size_ranks = {size: i for i, size in enumerate(sizes)}
+    if size1 not in sizes:
+        return "Normal"
+    if size2 not in sizes:
+        return "Normal"
     return sizes[max(size_ranks.get(size1), size_ranks.get(size2))]
 
 def get_smaller_textbox_size(size1, size2) -> str:
     sizes = ["Small", "Medium", "Normal"]
+    if size1 not in sizes:
+        return "Normal"
+    if size2 not in sizes:
+        return "Normal"
     size_ranks = {size: i for i, size in enumerate(sizes)}
     return sizes[min(size_ranks.get(size1), size_ranks.get(size2))]
 
