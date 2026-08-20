@@ -208,31 +208,31 @@ color_word_map = {
 
 # Color maps are for pinline colors
 
-land_color_map = {
-    'W': [217, 206, 200],
-    'U': [12, 97, 122],
-    'B': [76, 72, 71],
-    'R': [199, 78, 49],  # Changed from CMM to 7ED for more saturation
-    'G': [99, 142, 85],
-    'Land': [244, 172, 38],
+land_color_map: dict[str, tuple[float, float, float]] = {
+    'W': (217, 206, 200),
+    'U': (12, 97, 122),
+    'B': (76, 72, 71),
+    'R': (199, 78, 49),  # Changed from CMM to 7ED for more saturation
+    'G': (99, 142, 85),
+    'Land': (244, 172, 38),
 }
 
-dual_land_color_map = {
-    'W': [224, 217, 215],
-    'U': [0, 119, 158],
-    'B': [82, 81, 74],
-    'R': [237, 97, 59],
-    'G': [146, 192, 48],
-    'Land': [244, 172, 38],
+dual_land_color_map: dict[str, tuple[float, float, float]] = {
+    'W': (224, 217, 215),
+    'U': (0, 119, 158),
+    'B': (82, 81, 74),
+    'R': (237, 97, 59),
+    'G': (146, 192, 48),
+    'Land': (244, 172, 38),
 }
 
-nonland_color_map = {
-    'W': [217, 206, 200],
-    'U': [12, 97, 122],
-    'B': [76, 72, 71],
-    'R': [198, 118, 89],
-    'G': [99, 142, 85],
-    'Gold': [184, 165, 110],
-    'Artifact': [139, 124, 108],
-    'Colorless': [198, 198, 198]
+nonland_color_map: dict[str, tuple[float, float, float]] = {
+    'W': (217, 206, 200),
+    'U': (12, 97, 122),
+    'B': (76, 72, 71),
+    'R': (198, 118, 89),
+    'G': (99, 142, 85),
+    'Gold': (184, 165, 110),
+    'Artifact': (139, 124, 108),
+    'Colorless': (198, 198, 198)
 }
