@@ -1,1 +1,4 @@
-templates
+/templates
+/config_ini
+__pycache__
+/__init__.py

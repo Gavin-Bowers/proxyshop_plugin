@@ -1,31 +1,31 @@
 import re
 
-# Third Party
+import cardinfo
+
 # noinspection PyProtectedMember
 from photoshop.api._artlayer import ArtLayer
+
 # noinspection PyProtectedMember
 from photoshop.api._layerSet import LayerSet
 
-# Local
 import src.helpers as psd
 from src.utils.adobe import LayerContainerTypes
-# Plugin imports
-import cardinfo
 
 # region Layer Visibility Functions
 
 def set_layer_visibility(
     visible: bool,
-    layer: ArtLayer | LayerSet | str,
+    layer: ArtLayer | LayerSet | str | None,
     group: LayerContainerTypes | None = None,
 ):
-    if layer is None: return
+    if layer is None:
+        return
 
     if isinstance(layer, (ArtLayer, LayerSet)):
         layer.visible = visible
         return
 
-    target: ArtLayer | LayerSet = psd.getLayerSet(layer, group)
+    target = psd.getLayerSet(layer, group)
     if target is None: # If a group is not found, look for a layer instead
         target = psd.getLayer(layer, group)
 
@@ -101,7 +101,7 @@ def list_to_text(items: list[str]) -> str:
 
     return ", ".join(items[:-1]) + ", and " + items[-1]
 
-def format_leveler_abilities(abilities) -> str | None:
+def format_leveler_abilities(abilities: str | None) -> str | None:
     if abilities == "" or abilities is None:
         return None
 
@@ -116,23 +116,23 @@ def format_leveler_abilities(abilities) -> str | None:
 
     return abilities
 
-def get_bigger_textbox_size(size1, size2) -> str:
+def get_bigger_textbox_size(size1: str, size2: str) -> str:
     sizes = ["Small", "Medium", "Normal"]
     size_ranks = {size: i for i, size in enumerate(sizes)}
-    if size1 not in sizes:
+    if (rank_1 := size_ranks.get(size1, -1)) < 0:
         return "Normal"
-    if size2 not in sizes:
+    if (rank_2 := size_ranks.get(size2, -1)) < 0:
         return "Normal"
-    return sizes[max(size_ranks.get(size1), size_ranks.get(size2))]
+    return sizes[max(rank_1, rank_2)]
 
-def get_smaller_textbox_size(size1, size2) -> str:
+def get_smaller_textbox_size(size1: str, size2: str) -> str:
     sizes = ["Small", "Medium", "Normal"]
-    if size1 not in sizes:
-        return "Normal"
-    if size2 not in sizes:
-        return "Normal"
     size_ranks = {size: i for i, size in enumerate(sizes)}
-    return sizes[min(size_ranks.get(size1), size_ranks.get(size2))]
+    if (rank_1 := size_ranks.get(size1, -1)) < 0:
+        return "Normal"
+    if (rank_2 := size_ranks.get(size2, -1)) < 0:
+        return "Normal"
+    return sizes[min(rank_1, rank_2)]
 
 def sort_frame_textures(inputs: list[str]) -> list[str]:
     return sort_elements_by_position(inputs, cardinfo.ordered_frame_textures)
